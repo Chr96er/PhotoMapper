@@ -7,8 +7,10 @@ require(leaflet)
 require(jpeg)
 library(imager)
 library(htmlwidgets)
-source("helpers.R")
-source("manual.R")
+source("utilities.R")
+source("shinyUtilities.R")
+
+VERSION = strsplit(gsub(".VERSION",replacement = "",dir()[grep(dir(),pattern = "VERSION")]),"\\.")[[1]] 
 
 options(shiny.maxRequestSize=30*1024^2)
 
@@ -18,7 +20,16 @@ server <- function(input, output) {
   
   
   output$manual <- renderUI({
-    manual("The PhotoMapper application plots uploaded images on a map based on EXIF location and time information. Images without the required tags will be excluded. Note: all files are temporarily uploaded to shinyapps.io servers from which they will be deleted upon closing the application. Source code available under https://github.com/Chr96er/PhotoMapper")
+    manual("The PhotoMapper application plots uploaded images on a map based on EXIF location and time information. Images without the required tags will be excluded. Note: all files are temporarily uploaded to shinyapps.io servers from which they will be deleted upon closing the application.")
+  })
+  
+  output$version <- renderUI({
+    list(tags$p("Source code available under https://github.com/Chr96er/PhotoMapper"),
+         tags$p("Version ", paste(VERSION[1:3],collapse = "."), "; build ", VERSION[4],align="right"))
+  })
+
+  output$head <- renderUI({
+    htmlStyle()
   })
   
   output$map <- renderLeaflet({

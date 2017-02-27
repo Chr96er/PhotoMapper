@@ -3,6 +3,7 @@ require(shinythemes)
 
 fluidPage(theme = "bootstrap.css",
           titlePanel("PhotoMapper"),
+          uiOutput("head"),
           uiOutput("manual"),
           sidebarLayout(
             sidebarPanel(
@@ -13,4 +14,5 @@ fluidPage(theme = "bootstrap.css",
               #todo: input textfield for urls
             ),
             mainPanel(leaflet::leafletOutput("map"))
-          ))
+          ),
+          absolutePanel(uiOutput("version"),bottom = 0, right = 10))
