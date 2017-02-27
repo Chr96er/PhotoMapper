@@ -1,0 +1,6 @@
+release
+ - debugging: win/android
+ - test: no exif!
+
+future
+ - social media sharing
