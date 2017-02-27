@@ -58,20 +58,32 @@ server <- function(input, output) {
     # 'size', 'type', and 'datapath' columns. The 'datapath'
     # column will contain the local filenames where the data can
     # be found.
+    
+    if(input$example){
+       photos <- dir(path = "www/images/examples")
+       
+       if (is.null(photos)) {
+         return(NULL)
+       } else{
+         return(mapPhotos(paste0("www/images/examples/",photos)))
+       }
+    }
+    
     photos <- input$photos
     
     if (is.null(photos)) {
       return(NULL)
     } else{
-      return(mapPhotos(photos))
+      filenames <- as.matrix(photos)[,"datapath"]
+      names(filenames) <- NULL
+      file.rename(filenames,paste0(filenames,extension))
+      filenames <- paste0(filenames,extension)
+      return(mapPhotos(filenames))
     }
   })
   
-  mapPhotos <- function(photos){
-    filenames <- as.matrix(photos)[,"datapath"]
-    names(filenames) <- NULL
-    file.rename(filenames,paste0(filenames,extension))
-    filenames <- paste0(filenames,extension)
+  
+  mapPhotos <- function(filenames){
     exifFiles <- tryCatch(as.data.frame(as.matrix(t(sapply(filenames,read_exif)))),error=function(e) NULL)
     validate(need(!is.null(exifFiles),message = "One of the uploaded images contains broken EXIF information. Upload of images from sources other than cameras is currently not supported!"))
     # exifFiles <-
