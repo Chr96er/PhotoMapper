@@ -26,13 +26,10 @@ incVersion <-
 
 manual <- function(text) {
   h4(text, style = "font-style: italic;
-     font-weight: 100; line-height: 1;
+     font-weight: 20; line-height: 1;
      color: #888888;")
 }
 
-htmlStyle <- function(){
-  tags$head(tags$style("html * {font-family: palanquin;
-                                 }"
-  )
-  )
+htmlStyle <- function() {
+  tags$head(tags$style("html * {font-family: palanquin;}"))
 }

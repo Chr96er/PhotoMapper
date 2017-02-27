@@ -10,26 +10,46 @@ library(htmlwidgets)
 source("utilities.R")
 source("shinyUtilities.R")
 
-VERSION = strsplit(gsub(".VERSION",replacement = "",dir()[grep(dir(),pattern = "VERSION")]),"\\.")[[1]] 
+VERSION = strsplit(gsub(".VERSION", replacement = "", dir()[grep(dir(), pattern = "VERSION")]), "\\.")[[1]]
 
-options(shiny.maxRequestSize=30*1024^2)
+options(shiny.maxRequestSize = 30 * 1024 ^ 2)
 
 extension <- ".jpg"
 
 server <- function(input, output) {
-  
-  
   output$manual <- renderUI({
-    manual("The PhotoMapper application plots uploaded images on a map based on EXIF location and time information. Images without the required tags will be excluded. Note: all files are temporarily uploaded to shinyapps.io servers from which they will be deleted upon closing the application.")
+    manual(
+      "The PhotoMapper application plots uploaded images on a map based on EXIF location and time information. Images without the required tags will be excluded. Note: all files are temporarily uploaded to shinyapps.io servers from which they will be deleted upon closing the application."
+    )
   })
   
   output$version <- renderUI({
-    list(tags$p("Source code available under https://github.com/Chr96er/PhotoMapper"),
-         tags$p("Version ", paste(VERSION[1:3],collapse = "."), "; build ", VERSION[4],align="right"))
+    list(
+      tags$p(
+        "Source code available under https://github.com/Chr96er/PhotoMapper",
+        align = "right"
+      ),
+      tags$p(
+        "Version ",
+        paste(VERSION[1:3], collapse = "."),
+        "; build ",
+        VERSION[4],
+        align = "right"
+      )
+    )
   })
-
+  
   output$head <- renderUI({
-    htmlStyle()
+    list(htmlStyle(),
+         tags$script(src = "js/leaflet.social.js"))
+  })
+  
+  #ToDo: Responsive text
+  output$body <- renderUI({
+    # list(tags$div(style="position:relative; padding=10px;",tags$img(src="images/headerBanner.jpg", class="img-responsive", style="vertical-align: top;"),
+    # tags$h1("PhotoMapper",style="position: absolute; top:-25%; left: 1%")))
+    tags$style(type = 'text/css',
+               "footer{position: absolute; bottom:5%; left: 33%; padding:5px;}")
   })
   
   output$map <- renderLeaflet({
@@ -40,19 +60,20 @@ server <- function(input, output) {
     # be found.
     photos <- input$photos
     
-    if (is.null(photos)){
+    if (is.null(photos)) {
       return(NULL)
-    }else{
+    } else{
       return(mapPhotos(photos))
     }
-  }) 
+  })
   
   mapPhotos <- function(photos){
     filenames <- as.matrix(photos)[,"datapath"]
     names(filenames) <- NULL
     file.rename(filenames,paste0(filenames,extension))
     filenames <- paste0(filenames,extension)
-    exifFiles <- as.data.frame(as.matrix(t(sapply(filenames,read_exif))))
+    exifFiles <- tryCatch(as.data.frame(as.matrix(t(sapply(filenames,read_exif)))),error=function(e) NULL)
+    validate(need(!is.null(exifFiles),message = "One of the uploaded images contains broken EXIF information. Upload of images from sources other than cameras is currently not supported!"))
     # exifFiles <-
     #   read_exif(filenames)
     exifFiles$filename <- filenames
