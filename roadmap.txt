@@ -4,3 +4,4 @@ release
 
 future
  - social media sharing
+ - resource file containing text/translations
