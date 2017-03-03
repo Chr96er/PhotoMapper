@@ -1,0 +1,12 @@
+Package: PhotoMapper
+Title: "The PhotoMapper application plots uploaded images on a map based on EXIF location and time information."
+Version: 0.0.0.9000
+Authors@R: person("Christian", "Homberg", email = "christianhomberg@gmail.com", role = c("aut", "cre"))
+Description: "The PhotoMapper application plots uploaded images on a map based on EXIF location and time information. 
+      Images without the required tags will be excluded."
+Depends: R (>= 3.3.2), shiny, shinyUtils
+Imports: imager, jpeg, leaflet, ggmap, htmlwidgets, exif, rgdal
+License: GPL-3
+LazyData: true
+Suggests: testthat
+Remotes: Chr96er/exif Chr96er/shiny Chr96er/shinyUtils
