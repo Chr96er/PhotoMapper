@@ -82,11 +82,10 @@ imputeExif <-
     return(exif)
   }
 
-
 ### local images -----
 #Based on code by https://github.com/environmentalinformatics-marburg/mapview/blob/master/R/popupImage.R
 #'@export
-popupLocalImage <- function(img, width, height) {
+popupLocalImage <- function(img, tooltipText = "", width, height) {
   info <-
     sapply(img, function(...)
       rgdal::GDALinfo(..., silent = TRUE))
@@ -104,16 +103,19 @@ popupLocalImage <- function(img, width, height) {
     if (missing(width))
       width <- xy_ratio * height
   
-  paste0(
+  HTML(paste0(
     "<image src='images/converted/",
     basename(img),
     "' width=",
     width,
     " height=",
     height,
-    ">"
-  )
-  
+    " title='",
+    tooltipText,
+    "&#10;",
+    # tooltipText,
+    "'>"
+  ))
 }
 
 #'@export
@@ -145,5 +147,14 @@ getJpgFiles <- function(path, extension, exclude = ".*README.*") {
     return(paste0(path, files))
   } else {
     return(NULL)
+  }
+}
+
+#'@export
+substrRight <- function(x, n) {
+  if (n < (nchar(x) - 3)) {
+    return(paste0("...", substr(x, nchar(x) - n + 1, nchar(x))))
+  } else{
+    return(x)
   }
 }

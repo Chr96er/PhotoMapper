@@ -34,7 +34,7 @@ server <- function(input, output, session) {
   output$body <- renderUI({
     tags$style(type = 'text/css',
                "footer{position: absolute; bottom:5%; left: 33%; padding:5px;}")
-  })
+})
   
   #########################
   
@@ -119,16 +119,9 @@ server <- function(input, output, session) {
       cbind(exifFiles$longitude, exifFiles$latitude)
     exifFiles$LatLonShort <- 
       cbind(round(exifFiles$longitude, digits = 2), round(exifFiles$latitude, digits = 2))
+    updateTabsetPanel(session = session, inputId = "menuTabs", selected = "filter")
     return(exifFiles)
   })
-  
-  substrRight <- function(x, n){
-    if(n < (nchar(x) - 3)){
-      return(paste0("...", substr(x, nchar(x)-n+1, nchar(x)))  )
-    }else{
-      return(x)
-    }
-  }
   
   output$filenames <- DT::renderDataTable({
     exifFiles <- mapPhotosFilter()
@@ -141,7 +134,7 @@ server <- function(input, output, session) {
     exifDT[,"Name"] <- sapply(exifDT[,"Name"],function(x){substrRight(x,23)})
     rowSelection <- which(exifFiles$checked)
     DT::datatable(exifDT,options = list(dom = "tip",
-                                        drawCallback = JS(
+                                        drawCallback = DT::JS(
                                           'function(settings) {
                                            Shiny.bindAll(this.api().table().node());}')),
                   escape = F,class = "compact",
@@ -216,6 +209,12 @@ server <- function(input, output, session) {
       need(nrow(exifFiles) > 0, message = "None of the uploaded images contain EXIF location information.")
     )
 
+    popups <- sapply(seq_len(nrow(exifFiles)),function(i){
+      popupLocalImage(img=exifFiles$temppath[i], 
+                      tooltipText=sapply(exifFiles$originalFilename[i],
+                                         function(x){substrRight(x,23)}), width=imageWidth)
+    })
+    
     map <-
       leaflet::leaflet(matrix(unlist(exifFiles$LatLon), ncol = 2))
     map <- leaflet::addTiles(map)
@@ -223,7 +222,7 @@ server <- function(input, output, session) {
       leaflet::addCircleMarkers(
         map,
         color = grDevices::rainbow(nrow(exifFiles), alpha = NULL),
-        popup = popupLocalImage(exifFiles$temppath, imageWidth)
+        popup = popups
       )
     return(map)
   })
