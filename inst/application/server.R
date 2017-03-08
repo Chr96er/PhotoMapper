@@ -1,12 +1,14 @@
+#' Copy all imports to utilities.R since this file is not sourced during Build
 #'@import shinyUtils
 #'@import shiny
 #'@importFrom leaflet renderLeaflet
 #'@importFrom exif read_exif
+#'@importFrom DT renderDataTable
 library(exif)
 library(shiny)
 library(shinyUtils)
 library(PhotoMapper)
-library(gtools)
+library(DT)
 
 options(shiny.maxRequestSize = 30 * 1024 ^ 2)
 

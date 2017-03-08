@@ -1,5 +1,8 @@
+#' Copy all imports to utilities.R since this file is not sourced during Build
 #'@import shiny
 #'@importFrom leaflet leafletOutput
+#'@importFrom DT dataTableOutput
+#'@importFrom shinyDashboard box
 library(shinyUtils)
 library(shinydashboard)
 library(DT)

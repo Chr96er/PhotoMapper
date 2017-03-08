@@ -6,6 +6,15 @@
 #'@importFrom jpeg readJPEG writeJPEG
 #'@importFrom leaflet leaflet addTiles addCircleMarkers
 #'@importFrom grDevices rainbow
+#'@import shinyUtils
+#'@import shiny
+#'@importFrom leaflet renderLeaflet
+#'@importFrom exif read_exif
+#'@importFrom DT renderDataTable
+#'@import shiny
+#'@importFrom leaflet leafletOutput
+#'@importFrom DT dataTableOutput
+#'@importFrom shinydashboard box
 
 extension <- ".jpg"
 
