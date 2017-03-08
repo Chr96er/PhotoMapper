@@ -4,8 +4,6 @@
 #'@importFrom DT dataTableOutput
 #'@importFrom shinyDashboard box
 library(shinyUtils)
-library(shinydashboard)
-library(DT)
 #########################
 
 fluidPage(

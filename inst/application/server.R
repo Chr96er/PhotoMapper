@@ -4,11 +4,9 @@
 #'@importFrom leaflet renderLeaflet
 #'@importFrom exif read_exif
 #'@importFrom DT renderDataTable
-library(exif)
 library(shiny)
 library(shinyUtils)
-library(PhotoMapper) #devtools::install_github(repo = "Chr96er/PhotoMapper")
-library(DT)
+library(PhotoMapper)
 
 options(shiny.maxRequestSize = 30 * 1024 ^ 2)
 
@@ -86,7 +84,7 @@ server <- function(input, output, session) {
     
   computeExif <- reactive({
     if(is.null(filenames$local)) return()
-    exifFiles <- read_exif(filenames$local)
+    exifFiles <- exif::read_exif(filenames$local)
     exifFiles$filename <- filenames$local
     exifFiles$baseFilename <- basename(filenames$local)
     exifFiles$originalFilename <- filenames$original
