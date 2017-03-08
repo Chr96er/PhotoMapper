@@ -7,7 +7,7 @@
 library(exif)
 library(shiny)
 library(shinyUtils)
-library(PhotoMapper)
+library(PhotoMapper) #devtools::install_github(repo = "Chr96er/PhotoMapper")
 library(DT)
 
 options(shiny.maxRequestSize = 30 * 1024 ^ 2)
