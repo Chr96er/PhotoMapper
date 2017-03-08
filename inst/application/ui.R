@@ -89,7 +89,7 @@ fluidPage(
           )
         )
       ),
-      width = 3
+      width = 4
     ),
     mainPanel(leaflet::leafletOutput("map"), uiOutput("version"))
   )

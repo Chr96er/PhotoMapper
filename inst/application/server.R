@@ -47,11 +47,12 @@ server <- function(input, output, session) {
   }
 
   #observer for filenames reactiveValue
-  filenames <- reactiveValues(data = NULL)
+  filenames <- reactiveValues(local = NULL, original = NULL)
   observeEvent(input$example,
                {
                  cleanUp(path = normalizePath("www/images/converted/"), extension)
-                 filenames$data = imageDirectory("www/images/examples", extension)
+                 filenames$local <- imageDirectory("www/images/examples", extension)
+                 filenames$original <- imageDirectory("www/images/examples", extension)
                })
   observeEvent(input$loadImages,
                {
@@ -65,40 +66,32 @@ server <- function(input, output, session) {
                      mode = 'wb'
                    )
                  })
-                 filenames$data = imageDirectory("www/images/downloads", extension)
+                 filenames$local <- imageDirectory("www/images/downloads", extension)
+                 filenames$original <- imageDirectory("www/images/downloads", extension)
                })
   observeEvent(input$photos,
-               { photos = input$photos
+               { photos <- input$photos
                  cleanUp(path = normalizePath("www/images/converted/"), extension)
-                 localFilenames <- as.matrix(photos)[, "datapath"]
-                 names(localFilenames) <- NULL
+                 photoFilenames <- as.matrix(photos)[, c("name","datapath")]
+                 names(photoFilenames) <- NULL
+                 localFilenames <- photoFilenames[,2]
+                 originalFilename <- photoFilenames[,1]
                  file.rename(localFilenames, paste0(localFilenames, extension))
                  localFilenames <- paste0(localFilenames, extension)
-                 filenames$data = localFilenames
+                 filenames$local <- localFilenames
+                 filenames$original <- basename(originalFilename)
                })
     
-  importFiles <- reactive({
-    if(is.null(filenames$data)) return()
-    else{
-      return(filenames$data)
-    }
-  })
-  
-  
   computeExif <- reactive({
-    filenames <- importFiles()
-    if(is.null(filenames)){
-      return(NULL)
-    }
-    exifFiles <- read_exif(filenames)
-    exifFiles$filename <- filenames
-    exifFiles$basefilename <- basename(filenames)
+    if(is.null(filenames$local)) return()
+    exifFiles <- read_exif(filenames$local)
+    exifFiles$filename <- filenames$local
+    exifFiles$baseFilename <- basename(filenames$local)
+    exifFiles$originalFilename <- filenames$original
     exifFiles$checked <- T
     exifFiles$missingTimestamp <- F
     exifFiles$missingLocation <- F
     exifFiles <- imputeExif(exifFiles, c("latitude", "longitude"), c(0.001, 0.001))
-    #ToDo: warning if none of the uploaded images contain location information
-    # validate(need(!is.null(exifFiles) && nrow(exifFiles) > 0, message = "None of the uploaded images contain EXIF location information."))
     #ToDo: Impute time just like location
     missingTimestamp <- which(exifFiles$digitised_timestamp == "")
     #Set timestamp to 1970
@@ -124,27 +117,36 @@ server <- function(input, output, session) {
     exifFiles <- exifFiles[order(exifFiles$digitised_timestamp), ]
     exifFiles$LatLon <-
       cbind(exifFiles$longitude, exifFiles$latitude)
+    exifFiles$LatLonShort <- 
+      cbind(round(exifFiles$longitude, digits = 2), round(exifFiles$latitude, digits = 2))
     return(exifFiles)
   })
   
-  currentCheckboxes <- reactiveValues(data = NULL)
+  substrRight <- function(x, n){
+    if(n < (nchar(x) - 3)){
+      return(paste0("...", substr(x, nchar(x)-n+1, nchar(x)))  )
+    }else{
+      return(x)
+    }
+  }
   
   output$filenames <- DT::renderDataTable({
     exifFiles <- mapPhotosFilter()
     if(is.null(exifFiles)){
       return(NULL)
     }
-    # pick <- paste0('<input type="checkbox" name="row', exifFiles$filename, '" value="', 1, '" ', exifFiles$checked,'>',"")
-    exifDT <- cbind(Pick = shinyInput(checkboxInput,"srows_",nrow(exifFiles),value=exifFiles$checked,offset=currentCheckboxes$data, width=1),exifFiles[,c("basefilename","digitised_timestamp",
-                                      "latitude","longitude", "altitude"
-    )])
-    names(exifDT) <- c("Pick", "Name", "Date/Time", "Latitude", "Longitude", "Altitude")
+    exifDT <- exifFiles[,c("originalFilename","digitised_timestamp","LatLonShort")]
+    names(exifDT) <- c("Name", "Date/Time", "Latitude/Longitude")
+    #truncate filename
+    exifDT[,"Name"] <- sapply(exifDT[,"Name"],function(x){substrRight(x,23)})
+    rowSelection <- which(exifFiles$checked)
     DT::datatable(exifDT,options = list(dom = "tip",
                                         drawCallback = JS(
                                           'function(settings) {
-                                           Shiny.bindAll(this.api().table().node());}')
-                                        ),
-                  escape = F,class = "compact",selection = list(mode="single"))
+                                           Shiny.bindAll(this.api().table().node());}')),
+                  escape = F,class = "compact",
+                  selection = list(mode="multiple", selected = rowSelection),
+                  rownames = F)
       })
   
   
@@ -160,11 +162,11 @@ server <- function(input, output, session) {
       
       exifFiles$checked = T
       
-      if(ignoreMissingTimestamp){
+      if(ignoreMissingTimestamp && length(which(exifFiles$missingTimestamp))){
         exifFiles[which(exifFiles$missingTimestamp),]$checked = F
       }
       
-      if(ignoreMissingLocation){
+      if(ignoreMissingLocation && length(which(exifFiles$missingLocation))){
         exifFiles[which(exifFiles$missingLocation),]$checked = F
       }
       
@@ -199,40 +201,15 @@ server <- function(input, output, session) {
     return(exifFiles)
   })
   
-  rowsSelected <- reactiveValues(data = NULL)
-  
-  observeEvent(input$refresh,{
-    rows <- names(input)[grepl(pattern = "srows_",names(input))]
-    rows <- mixedsort(rows)
-    offset <- isolate(currentCheckboxes$data)
-    rowsSelected$data <- as.numeric(paste(unlist(lapply(rows,function(i){
-      if(input[[i]]){
-        currentRowIndex <- as.numeric(substr(i,gregexpr(pattern = "_",i)[[1]]+1,nchar(i)))
-        if(currentRowIndex > offset){
-          return(currentRowIndex - offset) 
-        }
-      }
-    }))))
-  })
-  
-  observeEvent(filenames$data,{
-    rows=names(input)[grepl(pattern = "srows_",names(input))]
-    currentCheckboxes$data <- max(as.numeric(paste(unlist(lapply(rows,function(i){
-      if(input[[i]]){
-        return(substr(i,gregexpr(pattern = "_",i)[[1]]+1,nchar(i)))
-      }
-    })))),0)
-  })
-  
   #' Wrapper for mapping images on leaflet map
   output$map <- leaflet::renderLeaflet({
     exifFiles <- convertImages()
-    selectedRows <- rowsSelected$data
+    selectedRows <- input$filenames_rows_selected
     exifFiles <- exifFiles[selectedRows,]
-    if(is.null(exifFiles)){
-      return(NULL)
-    }
-
+    
+    validate(need(!is.null(exifFiles) && nrow(exifFiles),
+                  message = "No images selected or no images with required exif information available"))
+    
     imageWidth <- input$imageWidth
 
     validate(

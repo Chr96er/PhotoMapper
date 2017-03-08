@@ -38,8 +38,12 @@ imputeExif <-
   function(exif, fields, offset = rep(0, length(fields))) {
     lastValue <- 0
     imputedValues <- c()
-    if (nrow(exif) == 1)
+    if (nrow(exif) == 1) {
+      if (all(exif[1, fields] == 0)) {
+        exif$missingLocation <- T
+      }
       return(exif)
+    }
     cachedIndex <- c()
     for (i in 1:nrow(exif)) {
       if (all(exif[i, fields] == 0)) {
@@ -65,7 +69,7 @@ imputeExif <-
       )) %o% offset, 1, function(x) {
         unlist(exif[lastValue, fields]) + x
       }))
-    exif$missingLocation = 1:nrow(exif)%in%imputedValues
+    exif$missingLocation <- 1:nrow(exif) %in% imputedValues
     return(exif)
   }
 
@@ -78,9 +82,9 @@ popupLocalImage <- function(img, width, height) {
     sapply(img, function(...)
       rgdal::GDALinfo(..., silent = TRUE))
   yx_ratio <-
-    as.numeric(info["rows",]) / as.numeric(info["columns",])
+    as.numeric(info["rows", ]) / as.numeric(info["columns", ])
   xy_ratio <-
-    as.numeric(info["columns",]) / as.numeric(info["rows",])
+    as.numeric(info["columns", ]) / as.numeric(info["rows", ])
   
   if (missing(height) && missing(width)) {
     width <- 300
@@ -91,13 +95,15 @@ popupLocalImage <- function(img, width, height) {
     if (missing(width))
       width <- xy_ratio * height
   
-  paste0("<image src='images/converted/",
-         basename(img),
-         "' width=",
-         width,
-         " height=",
-         height,
-         ">")
+  paste0(
+    "<image src='images/converted/",
+    basename(img),
+    "' width=",
+    width,
+    " height=",
+    height,
+    ">"
+  )
   
 }
 
@@ -116,18 +122,18 @@ imageDirectory <-
 
 
 #'@export
-cleanUp <- function(path, extension, exclude = ".*README.*"){
+cleanUp <- function(path, extension, exclude = ".*README.*") {
   jpgFiles <- getJpgFiles(path, extension, exclude)
-  if(!is.null(jpgFiles)){
-    file.remove(jpgFiles)  
+  if (!is.null(jpgFiles)) {
+    file.remove(jpgFiles)
   }
 }
 
 #'@export
-getJpgFiles <- function(path, extension, exclude = ".*README.*"){
+getJpgFiles <- function(path, extension, exclude = ".*README.*") {
   files <- dir(path, paste0(".*\\", extension))
-  if(length(files) > 0){
-    return(paste0(path,files)) 
+  if (length(files) > 0) {
+    return(paste0(path, files))
   } else {
     return(NULL)
   }
