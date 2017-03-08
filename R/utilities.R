@@ -7,6 +7,8 @@
 #'@importFrom leaflet leaflet addTiles addCircleMarkers
 #'@importFrom grDevices rainbow
 
+extension <- ".jpg"
+
 #'@export
 launch_application <- function()
 {
@@ -34,33 +36,36 @@ rotateImage <- function(origin, orientation, target = origin) {
 #'@export
 imputeExif <-
   function(exif, fields, offset = rep(0, length(fields))) {
-    lastValue = 0
+    lastValue <- 0
+    imputedValues <- c()
     if (nrow(exif) == 1)
       return(exif)
     cachedIndex <- c()
     for (i in 1:nrow(exif)) {
       if (all(exif[i, fields] == 0)) {
-        cachedIndex = c(cachedIndex, i)
+        cachedIndex <- c(cachedIndex, i)
+        imputedValues <- c(imputedValues , i)
       } else {
-        cachedIndex = c(cachedIndex, i)
-        lastValue = i
-        exif[cachedIndex, fields] = t(apply(seq((
+        cachedIndex <- c(cachedIndex, i)
+        lastValue <- i
+        exif[cachedIndex, fields] <- t(apply(seq((
           length(cachedIndex) - 1
         ), 0) %o% offset, 1, function(x) {
           unlist(exif[lastValue, fields]) + x
         }))
-        cachedIndex = c()
+        cachedIndex <- c()
       }
     }
     if (lastValue == 0) {
-      return(NULL)
+      return(exif)
     }
     if (length(cachedIndex) > 0)
-      exif[cachedIndex, fields] = t(apply(seq(1, (
+      exif[cachedIndex, fields] <- t(apply(seq(1, (
         length(cachedIndex)
       )) %o% offset, 1, function(x) {
         unlist(exif[lastValue, fields]) + x
       }))
+    exif$missingLocation = 1:nrow(exif)%in%imputedValues
     return(exif)
   }
 
@@ -86,7 +91,7 @@ popupLocalImage <- function(img, width, height) {
     if (missing(width))
       width <- xy_ratio * height
   
-  paste0("<image src='images/",
+  paste0("<image src='images/converted/",
          basename(img),
          "' width=",
          width,
@@ -109,97 +114,21 @@ imageDirectory <-
     }
   }
 
+
 #'@export
-mapPhotos <-
-  function(filenames,
-           imputeExif,
-           ignoreMissingTimestamp,
-           imageQuality,
-           imageWidth,
-           showProgress = T) {
-    # exifFiles <- tryCatch(as.data.frame(as.matrix(t(sapply(filenames,read_exif)))),error=function(e) NULL) #works with master branch of exif
-    exifFiles <- read_exif(filenames)
-    # validate(need(!is.null(exifFiles),message = "One of the uploaded images contains broken EXIF information.
-    # Upload of images from sources other than cameras is currently not supported!"))
-    exifFiles$filename <- filenames
-    if (imputeExif) {
-      exifFiles <-
-        imputeExif(exifFiles, c("latitude", "longitude"), c(0.01, 0.01))
-    }
-    
-    #Ignore files without location information, and also files without timestamp if user selected this option
-    excludeFiles <- which(exifFiles$latitude == 0)
-    missingTimestamp <- which(exifFiles$digitised_timestamp == "")
-    if (ignoreMissingTimestamp) {
-      excludeFiles <- c(excludeFiles, missingTimestamp)
-    } else{
-      #Set timestamp to 1970
-      exifFiles$digitised_timestamp[missingTimestamp] <-
-        "1970:01:01 00:00:00"
-      exifFiles$subsecond_timestamp[missingTimestamp] <-
-        1:length(missingTimestamp)
-    }
-    if (length(excludeFiles) > 0) {
-      exifFiles <-
-        exifFiles[-excludeFiles,]
-    }
-    
-    validate(
-      need(!is.null(exifFiles) &&
-             nrow(exifFiles) > 0, message = "None of the uploaded images contain EXIF location information.")
-    )
-    
-    # Parse time
-    op <- options(digits.secs = 3)
-    exifFiles$digitised_timestamp <-
-      strptime(
-        paste(
-          exifFiles$digitised_timestamp,
-          ".",
-          exifFiles$subsecond_timestamp,
-          "0",
-          sep = ""
-        ),
-        format = "%Y:%m:%d %H:%M:%OS"
-      )
-    exifFiles <- exifFiles[order(exifFiles$digitised_timestamp),]
-    exifFiles$LatLon <- cbind(exifFiles$longitude, exifFiles$latitude)
-    
-    exifFiles$temppath <-
-      paste0("www/images/", basename(exifFiles$filename))
-    
-    if (showProgress) {
-      withProgress({
-        for (i in 1:nrow(exifFiles)) {
-          jpeg::writeJPEG(
-            image = jpeg::readJPEG(exifFiles$filename[i], native = T),
-            quality = imageQuality,
-            target = exifFiles$temppath[i]
-          )
-          incProgress(1)
-        }
-      }, min = 1, max = nrow(exifFiles), message = "Converting images...")
-    } else{
-      for (i in 1:nrow(exifFiles)) {
-        jpeg::writeJPEG(
-          image = readJPEG(exifFiles$filename[i], native = T),
-          quality = imageQuality,
-          target = exifFiles$temppath[i]
-        )
-      }
-    }
-    
-    for (i in 1:nrow(exifFiles)) {
-      rotateImage(exifFiles$temppath[i], exifFiles$orientation[i])
-    }
-    
-    map <- leaflet::leaflet(matrix(unlist(exifFiles$LatLon), ncol = 2))
-    map <- leaflet::addTiles(map)
-    map <-
-      leaflet::addCircleMarkers(
-        map,
-        color = grDevices::rainbow(nrow(exifFiles), alpha = NULL),
-        popup = popupLocalImage(exifFiles$temppath, imageWidth)
-      )
-    return(map)
+cleanUp <- function(path, extension, exclude = ".*README.*"){
+  jpgFiles <- getJpgFiles(path, extension, exclude)
+  if(!is.null(jpgFiles)){
+    file.remove(jpgFiles)  
   }
+}
+
+#'@export
+getJpgFiles <- function(path, extension, exclude = ".*README.*"){
+  files <- dir(path, paste0(".*\\", extension))
+  if(length(files) > 0){
+    return(paste0(path,files)) 
+  } else {
+    return(NULL)
+  }
+}

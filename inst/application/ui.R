@@ -1,5 +1,9 @@
 #'@import shiny
 #'@importFrom leaflet leafletOutput
+library(shinyUtils)
+library(shinydashboard)
+library(DT)
+#########################
 
 fluidPage(
   theme = "bootstrap.css",
@@ -7,74 +11,86 @@ fluidPage(
   uiOutput("head"),
   uiOutput("body"),
   uiOutput("manual"),
+  textOutput("variables"),
   sidebarLayout(
     sidebarPanel(
-      sliderInput(
-        "imageQuality",
-        "Image compression factor",
-        min = 0.05,
-        max = 1,
-        value = 0.3,
-        ticks = T,
-        step = 0.05
-      ),
-      sliderInput(
-        "imageWidth",
-        "Image width (px)",
-        min = 0,
-        max = 1000,
-        value = 300,
-        ticks = T,
-        step = 1
-      ),
-      checkboxInput(
-        "imputeExif",
-        "Add missing EXIF location information (experimental)",
-        value = F
-      ),
-      checkboxInput(
-        "ignoreMissingTimestamp",
-        "Ignore images with missing timestamp",
-        value = F
-      ),
       tabsetPanel(
+        id = "menuTabs",
         tabPanel(
-          "Local files",
-          fileInput(
-            "photos",
-            "Choose images",
-            accept = c("image/jpg", ".jpg"),
-            multiple = T,
-            progressLabelAlignment = "center"
+          styledDiv("Import", "bold"),
+          tabsetPanel(
+            tabPanel(
+              styledDiv("Local files", "italic"),
+              fileInput(
+                "photos",
+                "Choose images",
+                accept = c("image/jpg", ".jpg"),
+                multiple = T,
+                progressLabelAlignment = "center"
+              )
+            ),
+            tabPanel(
+              styledDiv("Online files", "italic"),
+              tags$textarea(
+                id = "urls",
+                rows = 3,
+                style = "width: 100%; font-size: 10px",
+                placeholder = "Paste links"
+              ),
+              actionButton("loadImages", "Load images")
+            ),
+            tabPanel(
+              styledDiv("Demo", "italic"),
+              br(),
+              actionButton("example", "Start demo")
+            )
           )
         ),
         tabPanel(
-          "Online files",
-          tags$textarea(id = "urls", rows = 3, style = "width: 100%; font-size: 10px"),
-          tags$script(
-            "function resizeTextarea (id) {
-            var a = document.getElementById(id);
-            a.style.height = 'auto';
-            a.style.height = a.scrollHeight+'px';
-            }
-            
-            function init() {
-            var a = document.getElementsByTagName('textarea');
-            for(var i=0,inb=a.length;i<inb;i++) {
-            if(a[i].getAttribute('data-resizable')=='true')
-            resizeTextarea(a[i].id);
-            }
-            }
-            
-            addEventListener('DOMContentLoaded', init);"
+          styledDiv("Filter", "bold"),
+          value = "filter",
+          shinydashboard::box(
+            title = "Imported files",
+            width = NULL,
+            status = "primary",
+            div(style = 'overflow-x: scroll', DT::dataTableOutput("filenames"))
           ),
-          actionButton("loadImages", "Load images")
+          checkboxInput(
+            "ignoreMissingLocation",
+            "Ignore images with missing location",
+            value = F
+          ),
+          checkboxInput(
+            "ignoreMissingTimestamp",
+            "Ignore images with missing timestamp",
+            value = F
+          ),
+          actionButton("refresh", "Refresh")
+        ),
+        tabPanel(
+          styledDiv("Display", "bold"),
+          sliderInput(
+            "imageQuality",
+            "Image compression factor",
+            min = 0.05,
+            max = 1,
+            value = 0.3,
+            ticks = T,
+            step = 0.05
+          ),
+          sliderInput(
+            "imageWidth",
+            "Image width (px)",
+            min = 0,
+            max = 1000,
+            value = 300,
+            ticks = T,
+            step = 1
           )
-        ),
-      br(),
-      actionButton("example", "Demo using example images")
-      #todo: input textfield for urls
-        ),
-    mainPanel(leaflet::leafletOutput("map"), uiOutput("version"))
         )
-      )
+      ),
+      width = 3
+    ),
+    mainPanel(leaflet::leafletOutput("map"), uiOutput("version"))
+  )
+)
