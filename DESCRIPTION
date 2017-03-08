@@ -8,4 +8,4 @@ Imports: imager, jpeg, leaflet, ggmap, htmlwidgets, exif, rgdal, DT, shinydashbo
 License: GPL-3
 LazyData: true
 Suggests: testthat
-Remotes: chr96er/exif, chr96er/shiny, chr96er/shinyUtils
+Remotes: github::chr96er/exif, github::chr96er/shiny, github::chr96er/shinyUtils
