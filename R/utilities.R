@@ -82,10 +82,12 @@ imputeExif <-
     return(exif)
   }
 
+
 ### local images -----
 #Based on code by https://github.com/environmentalinformatics-marburg/mapview/blob/master/R/popupImage.R
 #'@export
-popupLocalImage <- function(img, tooltipText = "", width, height) {
+popupLocalImage <- function(exifFiles, tooltipText = "", width, height) {
+  img = exifFiles$temppath
   info <-
     sapply(img, function(...)
       rgdal::GDALinfo(..., silent = TRUE))
@@ -103,18 +105,27 @@ popupLocalImage <- function(img, tooltipText = "", width, height) {
     if (missing(width))
       width <- xy_ratio * height
   
+  exifTemp <- exifFiles[,c("shortName","digitised_timestamp","LatLonShort","altitude")]
+  names(exifTemp) <- c("Name", "Date/Time", "Latitude/Longitude", "Altitude")
+  exifTable <- htmlTable::htmlTable(t(exifTemp))
+  
+  
   HTML(paste0(
-    "<image src='images/converted/",
+    "<img src='images/converted/",
     basename(img),
+    "' class='tooltipClass' ",
+    " data-tooltip-content='#tooltip_content",
+    tooltipText,
     "' width=",
     width,
-    " height=",
+    " height='",
     height,
-    " title='",
+    "'/>",
+    '<div id="tooltip_content',
     tooltipText,
-    "&#10;",
-    # tooltipText,
-    "'>"
+    '" tableclass="tooltip_templates">',
+    HTML(paste0(exifTable)),
+    '</div>'
   ))
 }
 
@@ -134,6 +145,7 @@ imageDirectory <-
 
 #'@export
 cleanUp <- function(path, extension, exclude = ".*README.*") {
+  path <- normalizePath(path)
   jpgFiles <- getJpgFiles(path, extension, exclude)
   if (!is.null(jpgFiles)) {
     file.remove(jpgFiles)
@@ -142,9 +154,10 @@ cleanUp <- function(path, extension, exclude = ".*README.*") {
 
 #'@export
 getJpgFiles <- function(path, extension, exclude = ".*README.*") {
+  path <- normalizePath(path)
   files <- dir(path, paste0(".*\\", extension))
   if (length(files) > 0) {
-    return(paste0(path, files))
+    return(paste0(path, "/", files))
   } else {
     return(NULL)
   }

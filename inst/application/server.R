@@ -27,7 +27,16 @@ server <- function(input, output, session) {
   })
   
   output$head <- renderUI({
-    list(htmlStyle())
+    list(htmlStyle(),
+         tags$head(tags$script("
+          $(function(){
+            $('body').on('mouseenter', '.tooltipClass:not(.tooltipstered)', function(){
+    $(this)
+        .tooltipster()
+        .tooltipster('show');
+});
+          })")),
+         tags$head(tags$style(HTML(".tooltip_templates { display: none; }"))))
   })
   
   #ToDo: Responsive text
@@ -50,14 +59,14 @@ server <- function(input, output, session) {
   filenames <- reactiveValues(local = NULL, original = NULL)
   observeEvent(input$example,
                {
-                 cleanUp(path = normalizePath("www/images/converted/"), extension)
+                 cleanUp(path = normalizePath("www/images/converted"), extension)
                  filenames$local <- imageDirectory("www/images/examples", extension)
                  filenames$original <- imageDirectory("www/images/examples", extension)
                })
   observeEvent(input$loadImages,
                {
-                 cleanUp(path = normalizePath("www/images/converted/"), extension)
-                 cleanUp(path = normalizePath("www/images/downloads/"), extension)
+                 cleanUp(path = normalizePath("www/images/converted"), extension)
+                 cleanUp(path = normalizePath("www/images/downloads"), extension)
                  urls <- strsplit(input$urls, "\\n")[[1]]
                  sapply(urls, function(x) {
                    download.file(
@@ -71,7 +80,7 @@ server <- function(input, output, session) {
                })
   observeEvent(input$photos,
                { photos <- input$photos
-                 cleanUp(path = normalizePath("www/images/converted/"), extension)
+                 cleanUp(path = normalizePath("www/images/converted"), extension)
                  photoFilenames <- as.matrix(photos)[, c("name","datapath")]
                  names(photoFilenames) <- NULL
                  localFilenames <- photoFilenames[,2]
@@ -88,6 +97,8 @@ server <- function(input, output, session) {
     exifFiles$filename <- filenames$local
     exifFiles$baseFilename <- basename(filenames$local)
     exifFiles$originalFilename <- filenames$original
+    exifFiles$shortName <- sapply(exifFiles$originalFilename,
+                                  function(x){substrRight(x,23)})
     exifFiles$checked <- T
     exifFiles$missingTimestamp <- F
     exifFiles$missingLocation <- F
@@ -118,7 +129,7 @@ server <- function(input, output, session) {
     exifFiles$LatLon <-
       cbind(exifFiles$longitude, exifFiles$latitude)
     exifFiles$LatLonShort <- 
-      cbind(round(exifFiles$longitude, digits = 2), round(exifFiles$latitude, digits = 2))
+      paste(round(exifFiles$longitude, digits = 2), round(exifFiles$latitude, digits = 2), sep = " : ")
     updateTabsetPanel(session = session, inputId = "menuTabs", selected = "filter")
     return(exifFiles)
   })
@@ -128,10 +139,8 @@ server <- function(input, output, session) {
     if(is.null(exifFiles)){
       return(NULL)
     }
-    exifDT <- exifFiles[,c("originalFilename","digitised_timestamp","LatLonShort")]
+    exifDT <- exifFiles[,c("shortName","digitised_timestamp","LatLonShort")]
     names(exifDT) <- c("Name", "Date/Time", "Latitude/Longitude")
-    #truncate filename
-    exifDT[,"Name"] <- sapply(exifDT[,"Name"],function(x){substrRight(x,23)})
     rowSelection <- which(exifFiles$checked)
     DT::datatable(exifDT,options = list(dom = "tip",
                                         drawCallback = DT::JS(
@@ -142,8 +151,6 @@ server <- function(input, output, session) {
                   rownames = F)
       })
   
-  
-  #'@export
   mapPhotosFilter <-
     reactive({
       exifFiles <- computeExif()
@@ -194,6 +201,8 @@ server <- function(input, output, session) {
     return(exifFiles)
   })
   
+  mapTrigger <- reactiveValues(trigger = F)
+
   #' Wrapper for mapping images on leaflet map
   output$map <- leaflet::renderLeaflet({
     exifFiles <- convertImages()
@@ -210,9 +219,10 @@ server <- function(input, output, session) {
     )
 
     popups <- sapply(seq_len(nrow(exifFiles)),function(i){
-      popupLocalImage(img=exifFiles$temppath[i], 
-                      tooltipText=sapply(exifFiles$originalFilename[i],
-                                         function(x){substrRight(x,23)}), width=imageWidth)
+      popupLocalImage(exifFiles[i,], 
+                      # tooltipText=sapply(exifFiles$originalFilename[i],
+                                         # function(x){substrRight(x,23)}), width=imageWidth)
+                      tooltipText = i)
     })
     
     map <-
@@ -224,6 +234,7 @@ server <- function(input, output, session) {
         color = grDevices::rainbow(nrow(exifFiles), alpha = NULL),
         popup = popups
       )
+    mapTrigger$trigger = nrow(exifFiles)
     return(map)
   })
   }

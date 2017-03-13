@@ -9,3 +9,4 @@ License: GPL-3
 LazyData: true
 Suggests: testthat
 Remotes: github::chr96er/exif, github::chr96er/shiny, github::chr96er/shinyUtils
+RoxygenNote: 6.0.1

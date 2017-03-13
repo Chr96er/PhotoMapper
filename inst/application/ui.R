@@ -9,10 +9,11 @@ library(shinyUtils)
 fluidPage(
   theme = "bootstrap.css",
   titlePanel("PhotoMapper"),
+  tags$head(tags$script(src="tooltipster.bundle.min.css")),
+  tags$head(tags$script(src="tooltipster.bundle.min.js")),
   uiOutput("head"),
   uiOutput("body"),
   uiOutput("manual"),
-  textOutput("variables"),
   sidebarLayout(
     sidebarPanel(
       tabsetPanel(
@@ -92,6 +93,6 @@ fluidPage(
       ),
       width = 4
     ),
-    mainPanel(leaflet::leafletOutput("map"), uiOutput("version"))
+    mainPanel(leaflet::leafletOutput("map"), uiOutput("version"), uiOutput("mapJS"))
   )
 )
