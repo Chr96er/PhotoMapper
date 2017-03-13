@@ -31,19 +31,39 @@ server <- function(input, output, session) {
          tags$head(tags$script("
           $(function(){
             $('body').on('mouseenter', '.tooltipClass:not(.tooltipstered)', function(){
-    $(this)
-        .tooltipster()
-        .tooltipster('show');
-});
+              $(this)
+                  .tooltipster()
+                  .tooltipster('show');
+              });
+             $('body').on('mouseclick', '.leaflet-clickable', function(){
+              var jsonData = [
+                  { field1: 'value a1', field2: 'value a2', field3: 'value a3', field4: 'value a4' },
+                  { field1: 'value b1', field2: 'value b2', field3: 'value b3', field4: 'value b4' },
+                  { field1: 'value c1', field2: 'value c2', field3: 'value c3', field4: 'value c4' }
+              ];
+                loadTable('exifTable',['field1', 'field2', 'field3'],jsonData);
+              });
           })")),
-         tags$head(tags$style(HTML(".tooltip_templates { display: none; }"))))
+         tags$head(tags$style(HTML(".tooltip_templates { display: none; }"))),
+         tags$head(tags$script("function loadTable(tableId, fields, data) {
+    //$('#' + tableId).empty(); //not really necessary
+    var rows = '';
+    $.each(data, function(index, item) {
+        var row = '<tr>';
+        $.each(fields, function(index, field) {
+            row += '<td>' + item[field+''] + '</td>';
+        });
+        rows += row + '<tr>';
+    });
+    $('#' + tableId).html(rows);
+}")))
   })
   
   #ToDo: Responsive text
   output$body <- renderUI({
     tags$style(type = 'text/css',
                "footer{position: absolute; bottom:5%; left: 33%; padding:5px;}")
-})
+  })
   
   #########################
   
@@ -200,8 +220,60 @@ server <- function(input, output, session) {
     }
     return(exifFiles)
   })
+
   
-  mapTrigger <- reactiveValues(trigger = F)
+  ### local images -----
+  #Based on code by https://github.com/environmentalinformatics-marburg/mapview/blob/master/R/popupImage.R
+  #'@export
+  popupLocalImage <- function(exifFiles, tooltipText = "", width, height) {
+    img = exifFiles$temppath
+    info <-
+      sapply(img, function(...)
+        rgdal::GDALinfo(..., silent = TRUE))
+    yx_ratio <-
+      as.numeric(info["rows", ]) / as.numeric(info["columns", ])
+    xy_ratio <-
+      as.numeric(info["columns", ]) / as.numeric(info["rows", ])
+    
+    if (missing(height) && missing(width)) {
+      width <- 300
+      height <- yx_ratio * width
+    } else if (missing(height))
+      height <- yx_ratio * width
+    else
+      if (missing(width))
+        width <- xy_ratio * height
+    
+    exifTemp <- exifFiles[,c("shortName","digitised_timestamp","LatLonShort","altitude")]
+    names(exifTemp) <- c("Name", "Date/Time", "Latitude/Longitude", "Altitude")
+    exifTable <- htmlTable::htmlTable(t(exifTemp))
+    
+    
+    HTML(paste0(
+      "<img src='images/converted/",
+      basename(img),
+      "' class='tooltipClass' ",
+      " data-tooltip-content='#tooltip_content",
+      tooltipText,
+      "' width=",
+      width,
+      " height='",
+      height,
+      "'/>",
+      '<div id="tooltip_content',
+      tooltipText,
+      '" tableclass="tooltip_templates">',
+      HTML(paste0(exifTable)),
+      '</div>'
+    ))
+  }
+  
+    
+  mapTrigger <- reactiveValues(trigger = NULL)
+  # 
+  # output$exifTable <- observe(mapTrigger$trigger,{
+  #   
+  # })
 
   #' Wrapper for mapping images on leaflet map
   output$map <- leaflet::renderLeaflet({
@@ -234,7 +306,7 @@ server <- function(input, output, session) {
         color = grDevices::rainbow(nrow(exifFiles), alpha = NULL),
         popup = popups
       )
-    mapTrigger$trigger = nrow(exifFiles)
+    mapTrigger$trigger = exifFiles
     return(map)
   })
   }

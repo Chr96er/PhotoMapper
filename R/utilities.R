@@ -82,53 +82,6 @@ imputeExif <-
     return(exif)
   }
 
-
-### local images -----
-#Based on code by https://github.com/environmentalinformatics-marburg/mapview/blob/master/R/popupImage.R
-#'@export
-popupLocalImage <- function(exifFiles, tooltipText = "", width, height) {
-  img = exifFiles$temppath
-  info <-
-    sapply(img, function(...)
-      rgdal::GDALinfo(..., silent = TRUE))
-  yx_ratio <-
-    as.numeric(info["rows", ]) / as.numeric(info["columns", ])
-  xy_ratio <-
-    as.numeric(info["columns", ]) / as.numeric(info["rows", ])
-  
-  if (missing(height) && missing(width)) {
-    width <- 300
-    height <- yx_ratio * width
-  } else if (missing(height))
-    height <- yx_ratio * width
-  else
-    if (missing(width))
-      width <- xy_ratio * height
-  
-  exifTemp <- exifFiles[,c("shortName","digitised_timestamp","LatLonShort","altitude")]
-  names(exifTemp) <- c("Name", "Date/Time", "Latitude/Longitude", "Altitude")
-  exifTable <- htmlTable::htmlTable(t(exifTemp))
-  
-  
-  HTML(paste0(
-    "<img src='images/converted/",
-    basename(img),
-    "' class='tooltipClass' ",
-    " data-tooltip-content='#tooltip_content",
-    tooltipText,
-    "' width=",
-    width,
-    " height='",
-    height,
-    "'/>",
-    '<div id="tooltip_content',
-    tooltipText,
-    '" tableclass="tooltip_templates">',
-    HTML(paste0(exifTable)),
-    '</div>'
-  ))
-}
-
 #'@export
 imageDirectory <-
   function(directory, extensions = c(".jpg", ".jpeg")) {

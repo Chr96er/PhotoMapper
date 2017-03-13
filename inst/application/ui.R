@@ -14,8 +14,9 @@ fluidPage(
   uiOutput("head"),
   uiOutput("body"),
   uiOutput("manual"),
-  sidebarLayout(
-    sidebarPanel(
+  uiOutput("exifTable"),
+  fluidRow(
+    column(4,
       tabsetPanel(
         id = "menuTabs",
         tabPanel(
@@ -66,7 +67,7 @@ fluidPage(
             "ignoreMissingTimestamp",
             "Ignore images with missing timestamp",
             value = F
-          ),
+          ),y
           actionButton("refresh", "Refresh")
         ),
         tabPanel(
@@ -90,9 +91,9 @@ fluidPage(
             step = 1
           )
         )
-      ),
-      width = 4
+      )
     ),
-    mainPanel(leaflet::leafletOutput("map"), uiOutput("version"), uiOutput("mapJS"))
+    column(6,leaflet::leafletOutput("map")),
+    fluidRow(column(6,offset = 6, uiOutput("version"), uiOutput("mapJS")))
   )
 )
