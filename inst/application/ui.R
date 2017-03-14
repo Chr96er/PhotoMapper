@@ -66,8 +66,7 @@ fluidPage(
             "ignoreMissingTimestamp",
             "Ignore images with missing timestamp",
             value = F
-          ),
-          actionButton("refresh", "Refresh")
+          )
         ),
         tabPanel(
           styledDiv("Display", "bold"),

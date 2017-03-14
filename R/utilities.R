@@ -82,6 +82,43 @@ imputeExif <-
     return(exif)
   }
 
+
+### local images -----
+#Based on code by https://github.com/environmentalinformatics-marburg/mapview/blob/master/R/popupImage.R
+#'@export
+popupLocalImage <-
+  function(exifFiles, tooltipText = "", width, height) {
+    img = exifFiles$temppath
+    info <-
+      sapply(img, function(...)
+        rgdal::GDALinfo(..., silent = TRUE))
+    yx_ratio <-
+      as.numeric(info["rows",]) / as.numeric(info["columns",])
+    xy_ratio <-
+      as.numeric(info["columns",]) / as.numeric(info["rows",])
+    
+    if (missing(height) && missing(width)) {
+      width <- 300
+      height <- yx_ratio * width
+    } else if (missing(height))
+      height <- yx_ratio * width
+    else
+      if (missing(width))
+        width <- xy_ratio * height
+    
+    HTML(
+      paste0(
+        "<img src='images/converted/",
+        basename(img),
+        "' width=",
+        width,
+        " height='",
+        height,
+        "'/>"
+      )
+    )
+  }
+
 #'@export
 imageDirectory <-
   function(directory, extensions = c(".jpg", ".jpeg")) {

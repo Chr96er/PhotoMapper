@@ -27,36 +27,48 @@ server <- function(input, output, session) {
   })
   
   output$head <- renderUI({
-    list(htmlStyle(),
-         tags$head(tags$script("
+    list(
+      htmlStyle(),
+      tags$head(
+        tags$script(
+          "
           $(function(){
-            $('body').on('mouseenter', '.tooltipClass:not(.tooltipstered)', function(){
-              $(this)
-                  .tooltipster()
-                  .tooltipster('show');
-              });
-          })")),
-         # tags$head(tags$script("
-         #  $(function(){
-         #     $('body').on('mouseenter', '.leaflet-clickable', function(){
-         #        var circleID = $('.leaflet-clickable').index($(this));
-         #        Shiny.onInputChange('selectedCircle', circleID);
-         #      });
-         #  })")),
-         tags$head(tags$style(HTML(".tooltip_templates { display: none; }"))),
-         tags$head(tags$script("function loadTable(tableId, fields, data) {
+          $('body').on('mouseenter', '.tooltipClass:not(.tooltipstered)', function(){
+          $(this)
+          .tooltipster()
+          .tooltipster('show');
+          });
+          })"
+)
+        ),
+# tags$head(tags$script("
+#  $(function(){
+#     $('body').on('mouseenter', '.leaflet-clickable', function(){
+#        var circleID = $('.leaflet-clickable').index($(this));
+#        Shiny.onInputChange('selectedCircle', circleID);
+#      });
+#  })")),
+tags$head(tags$style(
+  HTML(".tooltip_templates { display: none; }")
+)),
+tags$head(
+  tags$script(
+    "function loadTable(tableId, fields, data) {
     //$('#' + tableId).empty(); //not really necessary
     var rows = '';
     $.each(data, function(index, item) {
-        var row = '<tr>';
-        $.each(fields, function(index, field) {
-            row += '<td>' + item[field+''] + '</td>';
-        });
-        rows += row + '<tr>';
+    var row = '<tr>';
+    $.each(fields, function(index, field) {
+    row += '<td>' + item[field+''] + '</td>';
+    });
+    rows += row + '<tr>';
     });
     $('#' + tableId).html(rows);
-}")))
-  })
+  }"
+)
+  )
+  )
+    })
   
   #ToDo: Responsive text
   output$body <- renderUI({
@@ -66,21 +78,29 @@ server <- function(input, output, session) {
   
   #########################
   
-  shinyInput <- function(FUN,id,num,value,offset,...) {
+  shinyInput <- function(FUN, id, num, value, offset, ...) {
     inputs <- character(num)
     for (i in seq_len(num)) {
-      inputs[i] <- as.character(FUN(paste0(id,i + offset),label=NULL,value = value[i],...))
+      inputs[i] <-
+        as.character(FUN(
+          paste0(id, i + offset),
+          label = NULL,
+          value = value[i],
+          ...
+        ))
     }
     inputs
   }
-
+  
   #observer for filenames reactiveValue
   filenames <- reactiveValues(local = NULL, original = NULL)
   observeEvent(input$example,
                {
                  cleanUp(path = normalizePath("www/images/converted"), extension)
-                 filenames$local <- imageDirectory("www/images/examples", extension)
-                 filenames$original <- imageDirectory("www/images/examples", extension)
+                 filenames$local <-
+                   imageDirectory("www/images/examples", extension)
+                 filenames$original <-
+                   imageDirectory("www/images/examples", extension)
                })
   observeEvent(input$loadImages,
                {
@@ -94,34 +114,42 @@ server <- function(input, output, session) {
                      mode = 'wb'
                    )
                  })
-                 filenames$local <- imageDirectory("www/images/downloads", extension)
-                 filenames$original <- imageDirectory("www/images/downloads", extension)
+                 filenames$local <-
+                   imageDirectory("www/images/downloads", extension)
+                 filenames$original <-
+                   imageDirectory("www/images/downloads", extension)
                })
   observeEvent(input$photos,
-               { photos <- input$photos
+               {
+                 photos <- input$photos
                  cleanUp(path = normalizePath("www/images/converted"), extension)
-                 photoFilenames <- as.matrix(photos)[, c("name","datapath")]
+                 photoFilenames <-
+                   as.matrix(photos)[, c("name", "datapath")]
                  names(photoFilenames) <- NULL
-                 localFilenames <- photoFilenames[,2]
-                 originalFilename <- photoFilenames[,1]
+                 localFilenames <- photoFilenames[, 2]
+                 originalFilename <- photoFilenames[, 1]
                  file.rename(localFilenames, paste0(localFilenames, extension))
                  localFilenames <- paste0(localFilenames, extension)
                  filenames$local <- localFilenames
                  filenames$original <- basename(originalFilename)
                })
-    
+  
   computeExif <- reactive({
-    if(is.null(filenames$local)) return()
+    if (is.null(filenames$local))
+      return()
     exifFiles <- exif::read_exif(filenames$local)
     exifFiles$filename <- filenames$local
     exifFiles$baseFilename <- basename(filenames$local)
     exifFiles$originalFilename <- filenames$original
     exifFiles$shortName <- sapply(exifFiles$originalFilename,
-                                  function(x){substrRight(x,23)})
+                                  function(x) {
+                                    substrRight(x, 23)
+                                  })
     exifFiles$checked <- T
     exifFiles$missingTimestamp <- F
     exifFiles$missingLocation <- F
-    exifFiles <- imputeExif(exifFiles, c("latitude", "longitude"), c(0.001, 0.001))
+    exifFiles <-
+      imputeExif(exifFiles, c("latitude", "longitude"), c(0.001, 0.001))
     #ToDo: Impute time just like location
     missingTimestamp <- which(exifFiles$digitised_timestamp == "")
     #Set timestamp to 1970
@@ -129,7 +157,7 @@ server <- function(input, output, session) {
       "1970:01:01 00:00:00"
     #ToDo: Might lead to unexpected sideeffects if more than 999 timestamps missing
     exifFiles$subsecond_timestamp[missingTimestamp] <-
-      1:length(missingTimestamp) 
+      1:length(missingTimestamp)
     exifFiles$missingTimestamp[missingTimestamp] <- T
     # Parse time
     op <- options(digits.secs = 3)
@@ -144,36 +172,50 @@ server <- function(input, output, session) {
         ),
         format = "%Y:%m:%d %H:%M:%OS"
       )
-    exifFiles <- exifFiles[order(exifFiles$digitised_timestamp), ]
+    exifFiles <- exifFiles[order(exifFiles$digitised_timestamp),]
     exifFiles$LatLon <-
       cbind(exifFiles$longitude, exifFiles$latitude)
-    exifFiles$LatLonShort <- 
-      paste(round(exifFiles$longitude, digits = 2), round(exifFiles$latitude, digits = 2), sep = " : ")
-    updateTabsetPanel(session = session, inputId = "menuTabs", selected = "filter")
+    exifFiles$LatLonShort <-
+      paste(
+        round(exifFiles$longitude, digits = 2),
+        round(exifFiles$latitude, digits = 2),
+        sep = " : "
+      )
+    updateTabsetPanel(session = session,
+                      inputId = "menuTabs",
+                      selected = "filter")
     return(exifFiles)
   })
   
   output$filenames <- DT::renderDataTable({
     exifFiles <- mapPhotosFilter()
-    if(is.null(exifFiles)){
+    if (is.null(exifFiles)) {
       return(NULL)
     }
-    exifDT <- exifFiles[,c("shortName","digitised_timestamp","LatLonShort")]
+    exifDT <-
+      exifFiles[, c("shortName", "digitised_timestamp", "LatLonShort")]
     names(exifDT) <- c("Name", "Date/Time", "Latitude/Longitude")
     rowSelection <- which(exifFiles$checked)
-    DT::datatable(exifDT,options = list(dom = "tip",
-                                        drawCallback = DT::JS(
-                                          'function(settings) {
-                                           Shiny.bindAll(this.api().table().node());}')),
-                  escape = F,class = "compact",
-                  selection = list(mode="multiple", selected = rowSelection),
-                  rownames = F)
-      })
+    DT::datatable(
+      exifDT,
+      options = list(
+        dom = "tip",
+        drawCallback = DT::JS(
+          'function(settings) {
+          Shiny.bindAll(this.api().table().node());}'
+        )
+        ),
+      escape = F,
+      class = "compact",
+      selection = list(mode = "multiple", selected = rowSelection),
+      rownames = F
+      )
+  })
   
   mapPhotosFilter <-
     reactive({
       exifFiles <- computeExif()
-      if(is.null(exifFiles)){
+      if (is.null(exifFiles)) {
         return(NULL)
       }
       ignoreMissingLocation <- input$ignoreMissingLocation
@@ -181,12 +223,14 @@ server <- function(input, output, session) {
       
       exifFiles$checked = T
       
-      if(ignoreMissingTimestamp && length(which(exifFiles$missingTimestamp))){
-        exifFiles[which(exifFiles$missingTimestamp),]$checked = F
+      if (ignoreMissingTimestamp &&
+          length(which(exifFiles$missingTimestamp))) {
+        exifFiles[which(exifFiles$missingTimestamp), ]$checked = F
       }
       
-      if(ignoreMissingLocation && length(which(exifFiles$missingLocation))){
-        exifFiles[which(exifFiles$missingLocation),]$checked = F
+      if (ignoreMissingLocation &&
+          length(which(exifFiles$missingLocation))) {
+        exifFiles[which(exifFiles$missingLocation), ]$checked = F
       }
       
       return(exifFiles)
@@ -195,11 +239,11 @@ server <- function(input, output, session) {
   convertImages <- reactive({
     #trigger if new files have been imported or quality changed (todo: lazy conversion depending on selection)
     exifFiles <- computeExif()
-    if(is.null(exifFiles)){
+    if (is.null(exifFiles)) {
       return(NULL)
     }
     imageQuality <- input$imageQuality
-    cleanUp("www/images/converted/",extension = extension)
+    cleanUp("www/images/converted/", extension = extension)
     exifFiles$temppath <-
       paste0("www/images/converted/", basename(exifFiles$filename))
     
@@ -219,80 +263,44 @@ server <- function(input, output, session) {
     }
     return(exifFiles)
   })
-
-  
-  ### local images -----
-  #Based on code by https://github.com/environmentalinformatics-marburg/mapview/blob/master/R/popupImage.R
-  #'@export
-  popupLocalImage <- function(exifFiles, tooltipText = "", width, height) {
-    img = exifFiles$temppath
-    info <-
-      sapply(img, function(...)
-        rgdal::GDALinfo(..., silent = TRUE))
-    yx_ratio <-
-      as.numeric(info["rows", ]) / as.numeric(info["columns", ])
-    xy_ratio <-
-      as.numeric(info["columns", ]) / as.numeric(info["rows", ])
-    
-    if (missing(height) && missing(width)) {
-      width <- 300
-      height <- yx_ratio * width
-    } else if (missing(height))
-      height <- yx_ratio * width
-    else
-      if (missing(width))
-        width <- xy_ratio * height
-    
-    HTML(paste0(
-      "<img src='images/converted/",
-      basename(img),
-      "' class='tooltipClass' ",
-      " data-tooltip-content='#tooltip_content",
-      tooltipText,
-      "' width=",
-      width,
-      " height='",
-      height,
-      "'/>"
-      # ,
-      # '<div id="tooltip_content',
-      # tooltipText,
-      # '" tableclass="tooltip_templates">',
-      # HTML(paste0(exifTable)),
-      # '</div>'
-    ))
-  }
   
   output$exifTable <- renderUI({
     selected <- input$map_marker_mouseover
-    if(is.null(selected)){
+    if (is.null(selected)) {
       return(NULL)
     }
     exifFiles <- convertImages()
-    exifFiles <- exifFiles[selected$id,]
-    exifTemp <- exifFiles[,c("shortName","digitised_timestamp","LatLonShort","altitude")]
-    names(exifTemp) <- c("Name", "Date/Time", "Latitude/Longitude", "Altitude")
+    exifFiles <- exifFiles[selected$id, ]
+    exifTemp <-
+      exifFiles[, c("shortName",
+                    "digitised_timestamp",
+                    "LatLonShort",
+                    "altitude")]
+    names(exifTemp) <-
+      c("Name", "Date/Time", "Latitude/Longitude", "Altitude")
     rownames(exifTemp) <- ""
-    htmlTable::htmlTable(t(exifTemp))
+    htmlTable::htmlTable(t(exifTemp), header = "EXIF-Information")
   })
   
   #' Wrapper for mapping images on leaflet map
   output$map <- leaflet::renderLeaflet({
     exifFiles <- convertImages()
     selectedRows <- input$filenames_rows_selected
-    exifFiles <- exifFiles[selectedRows,]
+    exifFiles <- exifFiles[selectedRows, ]
     
-    validate(need(!is.null(exifFiles) && nrow(exifFiles),
-                  message = "No images selected or no images with required exif information available"))
+    validate(
+      need(!is.null(exifFiles) && nrow(exifFiles),
+           message = "No images selected or no images with required exif information available")
+    )
     
     imageWidth <- input$imageWidth
-
+    
     validate(
       need(nrow(exifFiles) > 0, message = "None of the uploaded images contain EXIF location information.")
     )
-
-    popups <- sapply(seq_len(nrow(exifFiles)),function(i){
-      popupLocalImage(exifFiles[i,], 
+    
+    popups <- sapply(seq_len(nrow(exifFiles)), function(i) {
+      popupLocalImage(exifFiles[i, ],
                       tooltipText = i)
     })
     
