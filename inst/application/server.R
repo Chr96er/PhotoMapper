@@ -35,15 +35,14 @@ server <- function(input, output, session) {
                   .tooltipster()
                   .tooltipster('show');
               });
-             $('body').on('mouseclick', '.leaflet-clickable', function(){
-              var jsonData = [
-                  { field1: 'value a1', field2: 'value a2', field3: 'value a3', field4: 'value a4' },
-                  { field1: 'value b1', field2: 'value b2', field3: 'value b3', field4: 'value b4' },
-                  { field1: 'value c1', field2: 'value c2', field3: 'value c3', field4: 'value c4' }
-              ];
-                loadTable('exifTable',['field1', 'field2', 'field3'],jsonData);
-              });
           })")),
+         # tags$head(tags$script("
+         #  $(function(){
+         #     $('body').on('mouseenter', '.leaflet-clickable', function(){
+         #        var circleID = $('.leaflet-clickable').index($(this));
+         #        Shiny.onInputChange('selectedCircle', circleID);
+         #      });
+         #  })")),
          tags$head(tags$style(HTML(".tooltip_templates { display: none; }"))),
          tags$head(tags$script("function loadTable(tableId, fields, data) {
     //$('#' + tableId).empty(); //not really necessary
@@ -244,11 +243,6 @@ server <- function(input, output, session) {
       if (missing(width))
         width <- xy_ratio * height
     
-    exifTemp <- exifFiles[,c("shortName","digitised_timestamp","LatLonShort","altitude")]
-    names(exifTemp) <- c("Name", "Date/Time", "Latitude/Longitude", "Altitude")
-    exifTable <- htmlTable::htmlTable(t(exifTemp))
-    
-    
     HTML(paste0(
       "<img src='images/converted/",
       basename(img),
@@ -259,22 +253,29 @@ server <- function(input, output, session) {
       width,
       " height='",
       height,
-      "'/>",
-      '<div id="tooltip_content',
-      tooltipText,
-      '" tableclass="tooltip_templates">',
-      HTML(paste0(exifTable)),
-      '</div>'
+      "'/>"
+      # ,
+      # '<div id="tooltip_content',
+      # tooltipText,
+      # '" tableclass="tooltip_templates">',
+      # HTML(paste0(exifTable)),
+      # '</div>'
     ))
   }
   
-    
-  mapTrigger <- reactiveValues(trigger = NULL)
-  # 
-  # output$exifTable <- observe(mapTrigger$trigger,{
-  #   
-  # })
-
+  output$exifTable <- renderUI({
+    selected <- input$map_marker_mouseover
+    if(is.null(selected)){
+      return(NULL)
+    }
+    exifFiles <- convertImages()
+    exifFiles <- exifFiles[selected$id,]
+    exifTemp <- exifFiles[,c("shortName","digitised_timestamp","LatLonShort","altitude")]
+    names(exifTemp) <- c("Name", "Date/Time", "Latitude/Longitude", "Altitude")
+    rownames(exifTemp) <- ""
+    htmlTable::htmlTable(t(exifTemp))
+  })
+  
   #' Wrapper for mapping images on leaflet map
   output$map <- leaflet::renderLeaflet({
     exifFiles <- convertImages()
@@ -292,8 +293,6 @@ server <- function(input, output, session) {
 
     popups <- sapply(seq_len(nrow(exifFiles)),function(i){
       popupLocalImage(exifFiles[i,], 
-                      # tooltipText=sapply(exifFiles$originalFilename[i],
-                                         # function(x){substrRight(x,23)}), width=imageWidth)
                       tooltipText = i)
     })
     
@@ -304,9 +303,9 @@ server <- function(input, output, session) {
       leaflet::addCircleMarkers(
         map,
         color = grDevices::rainbow(nrow(exifFiles), alpha = NULL),
-        popup = popups
+        popup = popups,
+        layerId = seq_len(nrow(exifFiles))
       )
-    mapTrigger$trigger = exifFiles
     return(map)
   })
   }
