@@ -301,7 +301,8 @@ tags$head(
     
     popups <- sapply(seq_len(nrow(exifFiles)), function(i) {
       popupLocalImage(exifFiles[i, ],
-                      tooltipText = i)
+                      tooltipText = i,
+                      imageWidth)
     })
     
     map <-
