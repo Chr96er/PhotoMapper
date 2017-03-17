@@ -4,4 +4,4 @@ The PhotoMapper application plots uploaded images on a map based on EXIF locatio
 
 Try example application: https://chr96er.shinyapps.io/PhotoMapper/
 
-![alt tag](https://raw.githubusercontent.com/Chr96er/PhotoMapper/master/PhotoMapper/insta/application/www/images/README.jpg)
+![alt tag](https://raw.githubusercontent.com/Chr96er/PhotoMapper/master/inst/application/www/images/README.jpg)
