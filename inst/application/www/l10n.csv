@@ -1,0 +1,21 @@
+l10n,gb,de
+"manual","The PhotoMapper application plots uploaded images on a map based on EXIF location and time information.
+      Images without the required tags will be excluded. Note: all files are temporarily uploaded to shinyapps.io
+      servers from which they will be deleted upon closing the application.","Die PhotoMapper App verlinkt Fotos auf einer Weltkarte, basierend auf Exif Ortungs und Zeit Informationen. Fotos ohne die benötigten Tags werden ignoriert. Hinweis: Alle Dateien werden temporär auf shinyapps.io Server hochgeladen und von dort nach dem Schließen der Anwendung gelöscht."
+"Date/Time","Date/Time","Datum/Zeit"
+"Latitude/Longitude","Latitude/Longitude","Höhengrad/Längengrad"
+"Converting images...","Converting images...","Konvertiere Fotos"
+"Altitude","Altitude","Höhe"
+"Local files","Local files","Lokale Dateien"
+"Choose images","Choose images","Fotos auswählen"
+"Online images","Online images","Online Fotos"
+"Load images","Load images","Lade Fotos"
+"Start demo","Start demo","Starte Demo"
+"Imported files","Imported files","Importierte Dateien"
+"Ignore images with missing location","Ignore images with missing location","Ignoriere Fotos ohne Ortungsinformationen"
+"Ignore images with missing timestamp","Ignore images with missing timestamp","Ignoriere Fotos ohne Zeitinformationen"
+"Image compression factor","Image compression factor","Foto Kompressionsfaktor"
+"Image size (px)","Image size (px)","Fotogröße (px)"
+"Paste links","Paste links","Links einfügen"
+"No images selected or no images with required exif information available","No images selected or no images with required exif information available","Keine Bilder ausgewählt oder keine Bilder mit den benötigten EXIF-Informationen vorhanden"
+"None of the uploaded images contain EXIF location information.","None of the uploaded images contain EXIF location information.","Keins der hochgeladenen Bilder enthält EXIF Ortungsinformationen"

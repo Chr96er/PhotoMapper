@@ -1,0 +1,4 @@
+l10n,en,de
+manual,"The PhotoMapper application plots uploaded images on a map based on EXIF location and time information.
+      Images without the required tags will be excluded. Note: all files are temporarily uploaded to shinyapps.io
+      servers from which they will be deleted upon closing the application.","Die PhotoMapper app verlinkt Fotos auf einer Weltkarte, basierend auf Exif Ortungs und Zeit Informationen."

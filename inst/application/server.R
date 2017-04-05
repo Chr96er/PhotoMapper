@@ -7,19 +7,31 @@
 library(shiny)
 library(shinyUtils)
 library(PhotoMapper)
+library(data.table)
 
 options(shiny.maxRequestSize = 30 * 1024 ^ 2)
-
-
 extension <- ".jpg"
+translation <-
+  as.data.table(read.table(
+    file = "www/l10n.csv",
+    sep = ",",
+    header = T,
+    as.is = T
+  ))
 
 server <- function(input, output, session) {
+  ################Utility functions#################
+  tr <- function(text) {
+    # translates text into current language
+    sapply(text, function(s) {
+      textTranslated <-
+        unlist(translation[l10n == s, ifelse(is.null(input$language), "gb", input$language$iso2), with = F])
+      ifelse(length(textTranslated) == 0, s, textTranslated) #if translation not found -> return current text
+    }, USE.NAMES = F)
+  }
+  
   output$manual <- renderUI({
-    manual(
-      "The PhotoMapper application plots uploaded images on a map based on EXIF location and time information.
-      Images without the required tags will be excluded. Note: all files are temporarily uploaded to shinyapps.io
-      servers from which they will be deleted upon closing the application."
-    )
+    manual(tr("manual"))
   })
   
   output$version <- renderUI({
@@ -27,48 +39,8 @@ server <- function(input, output, session) {
   })
   
   output$head <- renderUI({
-    list(
-      htmlStyle(),
-      tags$head(
-        tags$script(
-          "
-          $(function(){
-          $('body').on('mouseenter', '.tooltipClass:not(.tooltipstered)', function(){
-          $(this)
-          .tooltipster()
-          .tooltipster('show');
-          });
-          })"
-)
-        ),
-# tags$head(tags$script("
-#  $(function(){
-#     $('body').on('mouseenter', '.leaflet-clickable', function(){
-#        var circleID = $('.leaflet-clickable').index($(this));
-#        Shiny.onInputChange('selectedCircle', circleID);
-#      });
-#  })")),
-tags$head(tags$style(
-  HTML(".tooltip_templates { display: none; }")
-)),
-tags$head(
-  tags$script(
-    "function loadTable(tableId, fields, data) {
-    //$('#' + tableId).empty(); //not really necessary
-    var rows = '';
-    $.each(data, function(index, item) {
-    var row = '<tr>';
-    $.each(fields, function(index, field) {
-    row += '<td>' + item[field+''] + '</td>';
-    });
-    rows += row + '<tr>';
-    });
-    $('#' + tableId).html(rows);
-  }"
-)
-  )
-  )
-    })
+    list(htmlStyle())
+  })
   
   #ToDo: Responsive text
   output$body <- renderUI({
@@ -76,7 +48,89 @@ tags$head(
                "footer{position: absolute; bottom:5%; left: 33%; padding:5px;}")
   })
   
-  #########################
+  output$fluidRow1 <- renderUI({
+    list(fluidRow(
+      column(
+        4,
+        tabsetPanel(
+          id = "menuTabs",
+          tabPanel(
+            styledDiv("Import", "bold"),
+            tabsetPanel(
+              tabPanel(
+                styledDiv(tr("Local files"), "italic"),
+                fileInput(
+                  "photos",
+                  tr("Choose images"),
+                  accept = c("image/jpg", ".jpg"),
+                  multiple = T,
+                  progressLabelAlignment = "center"
+                )
+              ),
+              tabPanel(
+                styledDiv(tr("Online images"), "italic"),
+                tags$textarea(
+                  id = "urls",
+                  rows = 3,
+                  style = "width: 100%; font-size: 10px",
+                  placeholder = tr("Paste links")
+                ),
+                actionButton("loadImages", tr("Load images"))
+              ),
+              tabPanel(
+                styledDiv("Demo", "italic"),
+                br(),
+                actionButton("example", tr("Start demo"))
+              )
+            )
+          ),
+          tabPanel(
+            styledDiv("Filter", "bold"),
+            value = "filter",
+            shinydashboard::box(
+              title = tr("Imported files"),
+              width = NULL,
+              status = "primary",
+              div(style = 'overflow-x: scroll', DT::dataTableOutput("filenames"))
+            ),
+            checkboxInput(
+              "ignoreMissingLocation",
+              tr("Ignore images with missing location"),
+              value = F
+            ),
+            checkboxInput(
+              "ignoreMissingTimestamp",
+              tr("Ignore images with missing timestamp"),
+              value = F
+            )
+          ),
+          tabPanel(
+            styledDiv("Display", "bold"),
+            sliderInput(
+              "imageQuality",
+              tr("Image compression factor"),
+              min = 0.05,
+              max = 1,
+              value = 0.3,
+              ticks = T,
+              step = 0.05
+            ),
+            sliderInput(
+              "imageSize",
+              tr("Image size (px)"),
+              min = 0,
+              max = 1000,
+              value = 300,
+              ticks = T,
+              step = 1
+            )
+          )
+        )
+      ),
+      column(5, leaflet::leafletOutput("map")),
+      column(3, uiOutput("exifTable"))
+    ))
+  })
   
   shinyInput <- function(FUN, id, num, value, offset, ...) {
     inputs <- character(num)
@@ -129,7 +183,8 @@ tags$head(
                  localFilenames <- photoFilenames[, 2]
                  originalFilename <- photoFilenames[, 1]
                  file.rename(localFilenames, paste0(localFilenames, extension))
-                 localFilenames <- paste0(localFilenames, extension)
+                 localFilenames <-
+                   paste0(localFilenames, extension)
                  filenames$local <- localFilenames
                  filenames$original <- basename(originalFilename)
                })
@@ -194,7 +249,8 @@ tags$head(
     }
     exifDT <-
       exifFiles[, c("shortName", "digitised_timestamp", "LatLonShort")]
-    names(exifDT) <- c("Name", "Date/Time", "Latitude/Longitude")
+    names(exifDT) <-
+      tr(c("Name", "Date/Time", "Latitude/Longitude"))
     rowSelection <- which(exifFiles$checked)
     DT::datatable(
       exifDT,
@@ -256,7 +312,7 @@ tags$head(
         )
         incProgress(1)
       }
-    }, min = 1, max = nrow(exifFiles), message = "Converting images...")
+    }, min = 1, max = nrow(exifFiles), message = tr("Converting images..."))
     
     for (i in 1:nrow(exifFiles)) {
       rotateImage(exifFiles$temppath[i], exifFiles$orientation[i])
@@ -264,9 +320,28 @@ tags$head(
     return(exifFiles)
   })
   
+  mouseover <- reactiveValues(toggle = T)
+  observeEvent({
+    input$map_marker_mouseover
+    input$map_marker_mouseout
+  }, {
+    if (is.null(input$map_marker_mouseover) ||
+        (
+          mouseover$toggle &&
+          !is.null(input$map_marker_mouseout$id) &&
+          input$map_marker_mouseout$id == input$map_marker_mouseover$id
+          #If mouseovertoggle is true and mouseout and mouseover have same id
+          # --> This means that mouse left marker
+        )) {
+      mouseover$toggle <- F
+    } else{
+      mouseover$toggle <- T
+    }
+  })
+  
   output$exifTable <- renderUI({
     selected <- input$map_marker_mouseover
-    if (is.null(selected)) {
+    if (is.null(selected) || !mouseover$toggle) {
       return(NULL)
     }
     exifFiles <- convertImages()
@@ -277,7 +352,7 @@ tags$head(
                     "LatLonShort",
                     "altitude")]
     names(exifTemp) <-
-      c("Name", "Date/Time", "Latitude/Longitude", "Altitude")
+      tr(c("Name", "Date/Time", "Latitude/Longitude", "Altitude"))
     rownames(exifTemp) <- ""
     htmlTable::htmlTable(t(exifTemp), header = "EXIF-Information")
   })
@@ -288,21 +363,26 @@ tags$head(
     selectedRows <- input$filenames_rows_selected
     exifFiles <- exifFiles[selectedRows, ]
     
-    validate(
-      need(!is.null(exifFiles) && nrow(exifFiles),
-           message = "No images selected or no images with required exif information available")
-    )
+    validate(need(
+      !is.null(exifFiles) && nrow(exifFiles),
+      message = tr(
+        "No images selected or no images with required exif information available"
+      )
+    ))
     
-    imageWidth <- input$imageWidth
+    imageSize <- input$imageSize
     
-    validate(
-      need(nrow(exifFiles) > 0, message = "None of the uploaded images contain EXIF location information.")
-    )
+    validate(need(
+      nrow(exifFiles) > 0,
+      message = tr(
+        "None of the uploaded images contain EXIF location information."
+      )
+    ))
     
     popups <- sapply(seq_len(nrow(exifFiles)), function(i) {
       popupLocalImage(exifFiles[i, ],
                       tooltipText = i,
-                      imageWidth)
+                      imageSize)
     })
     
     map <-
@@ -313,8 +393,9 @@ tags$head(
         map,
         color = grDevices::rainbow(nrow(exifFiles), alpha = NULL),
         popup = popups,
-        layerId = seq_len(nrow(exifFiles))
+        layerId = seq_len(nrow(exifFiles)),
+        clusterOptions = leaflet::markerClusterOptions()
       )
     return(map)
   })
-  }
+}

@@ -87,24 +87,25 @@ imputeExif <-
 #Based on code by https://github.com/environmentalinformatics-marburg/mapview/blob/master/R/popupImage.R
 #'@export
 popupLocalImage <-
-  function(exifFiles, tooltipText = "", width, height) {
+  function(exifFiles, tooltipText = "", size) {
     img = exifFiles$temppath
     info <-
       sapply(img, function(...)
         rgdal::GDALinfo(..., silent = TRUE))
     yx_ratio <-
-      as.numeric(info["rows",]) / as.numeric(info["columns",])
-    xy_ratio <-
-      as.numeric(info["columns",]) / as.numeric(info["rows",])
+      as.numeric(info["rows", ]) / as.numeric(info["columns", ])
     
-    if (missing(height) && missing(width)) {
-      width <- 300
+    if (missing(size)) {
+      size <- 300
+    }
+    if (yx_ratio > 1) {
+      #More rows than columns -> size is basis for height
+      height <- size
+      width <- height / yx_ratio
+    } else {
+      width <- size
       height <- yx_ratio * width
-    } else if (missing(height))
-      height <- yx_ratio * width
-    else
-      if (missing(width))
-        width <- xy_ratio * height
+    }
     
     HTML(
       paste0(
@@ -160,4 +161,9 @@ substrRight <- function(x, n) {
   } else{
     return(x)
   }
+}
+
+#'@export
+addTranslation <- function(key, english, german) {
+  
 }

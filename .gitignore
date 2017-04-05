@@ -26,3 +26,5 @@ vignettes/*.pdf
 NEWS
 packrat/lib*/
 packrat
+#converted images
+**/converted/
