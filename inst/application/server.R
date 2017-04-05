@@ -394,7 +394,9 @@ server <- function(input, output, session) {
         color = grDevices::rainbow(nrow(exifFiles), alpha = NULL),
         popup = popups,
         layerId = seq_len(nrow(exifFiles)),
-        clusterOptions = leaflet::markerClusterOptions()
+        clusterOptions = leaflet::markerClusterOptions(),
+        stroke = F,
+        fillOpacity = 0.5
       )
     return(map)
   })
