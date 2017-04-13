@@ -70,7 +70,7 @@ server <- function(input, output, session) {
       if(typeof resizeTrigger == 'undefined'){
       resizeTrigger = true;
       }
-      $('.leaflet-control').append('<a class=\\\"leaflet-control-fullscreen\\\"  onmouseover=\\\"\\\" style=\\\"cursor: pointer;\\\", onclick=\\\"Shiny.onInputChange(\\\'viewToggled\\\', resizeTrigger);\\\"><img src=\\\"/images/fullscreen.png\\\"></a>');
+      $('.leaflet-control-zoom').append('<a class=\\\"leaflet-control-fullscreen\\\"  onmouseover=\\\"\\\" style=\\\"cursor: pointer;\\\", onclick=\\\"Shiny.onInputChange(\\\'viewToggled\\\', resizeTrigger);\\\"><img src=\\\"/images/fullscreen.png\\\"></a>');
   }"
 )
     })
