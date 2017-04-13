@@ -75,8 +75,8 @@ server <- function(input, output, session) {
 )
     })
   
+  #Use minimized view by default
   view <- reactiveValues(default = T)
-  
   observeEvent(input$viewToggled, {
     if (is.null(input$viewToggled)) {
       return(NULL)
@@ -84,6 +84,25 @@ server <- function(input, output, session) {
       view$default = !view$default
     }
   })
+  
+  #Save tabs before switching between views
+  currentTab <-
+    reactiveValues(menu = "Import", files = "Local files")
+  observeEvent(view$default,
+               {
+                 if (is.null(input$menuTabs)) {
+                   return(NULL)
+                 }
+                 currentTab$menu = input$menuTabs
+               })
+  
+  observeEvent(view$default,
+               {
+                 if (is.null(input$filesTabs)) {
+                   return(NULL)
+                 }
+                 currentTab$files = input$filesTabs
+               })
   
   output$fluidRows <- renderUI({
     if (view$default) {
@@ -98,9 +117,12 @@ server <- function(input, output, session) {
               id = "menuTabs",
               tabPanel(
                 styledDiv("Import", "bold"),
+                value = "Import",
                 tabsetPanel(
+                  id = "filesTabs",
                   tabPanel(
                     styledDiv(tr("Local files"), "italic"),
+                    value = "Local files",
                     fileInput(
                       "photos",
                       tr("Choose images"),
@@ -111,6 +133,7 @@ server <- function(input, output, session) {
                   ),
                   tabPanel(
                     styledDiv(tr("Online images"), "italic"),
+                    value = "Online images",
                     tags$textarea(
                       id = "urls",
                       rows = 3,
@@ -121,9 +144,11 @@ server <- function(input, output, session) {
                   ),
                   tabPanel(
                     styledDiv("Demo", "italic"),
+                    value = "Demo",
                     br(),
                     actionButton("example", tr("Start demo"))
-                  )
+                  ),
+                  selected = currentTab$filesTabs
                 )
               ),
               tabPanel(
@@ -148,6 +173,7 @@ server <- function(input, output, session) {
               ),
               tabPanel(
                 styledDiv("Display", "bold"),
+                value = "Display",
                 sliderInput(
                   "imageQuality",
                   tr("Image compression factor"),
@@ -166,7 +192,8 @@ server <- function(input, output, session) {
                   ticks = T,
                   step = 1
                 )
-              )
+              ),
+              selected = currentTab$menu
             )
           ),
           column(5, leaflet::leafletOutput("map")),
@@ -180,7 +207,6 @@ server <- function(input, output, session) {
         class = "outer",
         tags$head(# Include our custom CSS
           includeCSS("styles.css")),
-        # tags$script(HTML(if(!is.null(input$map_bounds)){"$('.leaflet-control').append('<a class=\\\"leaflet-control-fullscreen\\\"  onmouseover=\\\"\\\" style=\\\"cursor: pointer;\\\", onclick=\\\"Shiny.onInputChange(\\\'viewToggled\\\', false);\\\"><img src=\\\"/images/fullscreen.png\\\"></a>');"})),
         leaflet::leafletOutput("map", width = "100%", height = "100%"),
         absolutePanel(
           id = "controls",
@@ -200,9 +226,12 @@ server <- function(input, output, session) {
             id = "menuTabs",
             tabPanel(
               styledDiv("Import", "bold"),
+              value = "Import",
               tabsetPanel(
+                id = "filesTabs",
                 tabPanel(
                   styledDiv(tr("Local files"), "italic"),
+                  value = "Local files",
                   fileInput(
                     "photos",
                     tr("Choose images"),
@@ -213,6 +242,7 @@ server <- function(input, output, session) {
                 ),
                 tabPanel(
                   styledDiv(tr("Online images"), "italic"),
+                  value = "Online images",
                   tags$textarea(
                     id = "urls",
                     rows = 3,
@@ -223,9 +253,11 @@ server <- function(input, output, session) {
                 ),
                 tabPanel(
                   styledDiv("Demo", "italic"),
+                  value = "Demo",
                   br(),
                   actionButton("example", tr("Start demo"))
-                )
+                ),
+                selected = currentTab$filesTabs
               )
             ),
             tabPanel(
@@ -250,6 +282,7 @@ server <- function(input, output, session) {
             ),
             tabPanel(
               styledDiv("Display", "bold"),
+              value = "Display",
               sliderInput(
                 "imageQuality",
                 tr("Image compression factor"),
@@ -268,7 +301,8 @@ server <- function(input, output, session) {
                 ticks = T,
                 step = 1
               )
-            )
+            ),
+            selected = currentTab$menu
           )
         )
       )
@@ -370,7 +404,7 @@ server <- function(input, output, session) {
         ),
         format = "%Y:%m:%d %H:%M:%OS"
       )
-    exifFiles <- exifFiles[order(exifFiles$digitised_timestamp), ]
+    exifFiles <- exifFiles[order(exifFiles$digitised_timestamp),]
     exifFiles$LatLon <-
       cbind(exifFiles$longitude, exifFiles$latitude)
     exifFiles$LatLonShort <-
@@ -424,12 +458,12 @@ server <- function(input, output, session) {
       
       if (ignoreMissingTimestamp &&
           length(which(exifFiles$missingTimestamp))) {
-        exifFiles[which(exifFiles$missingTimestamp),]$checked = F
+        exifFiles[which(exifFiles$missingTimestamp), ]$checked = F
       }
       
       if (ignoreMissingLocation &&
           length(which(exifFiles$missingLocation))) {
-        exifFiles[which(exifFiles$missingLocation),]$checked = F
+        exifFiles[which(exifFiles$missingLocation), ]$checked = F
       }
       
       return(exifFiles)
@@ -488,7 +522,7 @@ server <- function(input, output, session) {
       return(NULL)
     }
     exifFiles <- convertImages()
-    exifFiles <- exifFiles[selected$id,]
+    exifFiles <- exifFiles[selected$id, ]
     exifTemp <-
       exifFiles[, c("shortName",
                     "digitised_timestamp",
@@ -504,7 +538,7 @@ server <- function(input, output, session) {
   output$map <- leaflet::renderLeaflet({
     exifFiles <- convertImages()
     selectedRows <- input$filenames_rows_selected
-    exifFiles <- exifFiles[selectedRows,]
+    exifFiles <- exifFiles[selectedRows, ]
     
     validate(need(
       !is.null(exifFiles) && nrow(exifFiles),
@@ -523,7 +557,7 @@ server <- function(input, output, session) {
     ))
     
     popups <- sapply(seq_len(nrow(exifFiles)), function(i) {
-      popupLocalImage(exifFiles[i,],
+      popupLocalImage(exifFiles[i, ],
                       tooltipText = i,
                       imageSize)
     })
