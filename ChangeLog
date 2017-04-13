@@ -2,11 +2,14 @@ release
  - test coverage 100%
  - display time/location in popup image
  - cleanup directories
-
-future
- - social media sharing
  - resource file containing text/translations
  - table/filter containing exif information
+ - tabbing: import, filter, display, social
+
+future
+ - client side compression
+ - social media sharing
+ - context menu: open image in new tab, download
+ - mouseover: display image in full size
  - timeline: in new tab or linked to map
  - mouseover: display image in sidebar
- - tabbing: import, filter, display, social

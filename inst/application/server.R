@@ -38,98 +38,241 @@ server <- function(input, output, session) {
     renderVersion(url = "https://github.com/Chr96er/PhotoMapper")
   })
   
-  output$head <- renderUI({
-    list(htmlStyle())
-  })
-  
   #ToDo: Responsive text
   output$body <- renderUI({
     tags$style(type = 'text/css',
                "footer{position: absolute; bottom:5%; left: 33%; padding:5px;}")
   })
   
-  output$fluidRow1 <- renderUI({
-    list(fluidRow(
-      column(
-        4,
-        tabsetPanel(
-          id = "menuTabs",
-          tabPanel(
-            styledDiv("Import", "bold"),
+  output$head <- renderUI({
+    list(htmlStyle(),
+         tags$script(
+           HTML(
+             "
+             $(function(){
+             $('body').on('click', '.leaflet-control-fullscreen', function(){
+             if(typeof resizeTrigger == 'undefined'){
+             resizeTrigger = true;
+             }
+             resizeTrigger = !resizeTrigger;
+             });
+             });"
+)
+           ))
+})
+  
+  observe({
+    if (is.null(input$map_bounds)) {
+      return(NULL)
+    }
+    shinyjs::runjs(
+      "if($('.leaflet-control-fullscreen').length === 0){
+      if(typeof resizeTrigger == 'undefined'){
+      resizeTrigger = true;
+      }
+      $('.leaflet-control').append('<a class=\\\"leaflet-control-fullscreen\\\"  onmouseover=\\\"\\\" style=\\\"cursor: pointer;\\\", onclick=\\\"Shiny.onInputChange(\\\'viewToggled\\\', resizeTrigger);\\\"><img src=\\\"/images/fullscreen.png\\\"></a>');
+  }"
+)
+    })
+  
+  view <- reactiveValues(default = T)
+  
+  observeEvent(input$viewToggled, {
+    if (is.null(input$viewToggled)) {
+      return(NULL)
+    } else {
+      view$default = !view$default
+    }
+  })
+  
+  output$fluidRows <- renderUI({
+    if (view$default) {
+      list(
+        fluidRow(
+          titlePanel("PhotoMapper"),
+          uiOutput("body"),
+          uiOutput("manual"),
+          column(
+            4,
             tabsetPanel(
+              id = "menuTabs",
               tabPanel(
-                styledDiv(tr("Local files"), "italic"),
-                fileInput(
-                  "photos",
-                  tr("Choose images"),
-                  accept = c("image/jpg", ".jpg"),
-                  multiple = T,
-                  progressLabelAlignment = "center"
+                styledDiv("Import", "bold"),
+                tabsetPanel(
+                  tabPanel(
+                    styledDiv(tr("Local files"), "italic"),
+                    fileInput(
+                      "photos",
+                      tr("Choose images"),
+                      accept = c("image/jpg", ".jpg"),
+                      multiple = T,
+                      progressLabelAlignment = "center"
+                    )
+                  ),
+                  tabPanel(
+                    styledDiv(tr("Online images"), "italic"),
+                    tags$textarea(
+                      id = "urls",
+                      rows = 3,
+                      style = "width: 100%; font-size: 10px",
+                      placeholder = tr("Paste links")
+                    ),
+                    actionButton("loadImages", tr("Load images"))
+                  ),
+                  tabPanel(
+                    styledDiv("Demo", "italic"),
+                    br(),
+                    actionButton("example", tr("Start demo"))
+                  )
                 )
               ),
               tabPanel(
-                styledDiv(tr("Online images"), "italic"),
-                tags$textarea(
-                  id = "urls",
-                  rows = 3,
-                  style = "width: 100%; font-size: 10px",
-                  placeholder = tr("Paste links")
+                styledDiv("Filter", "bold"),
+                value = "filter",
+                shinydashboard::box(
+                  title = tr("Imported files"),
+                  width = NULL,
+                  status = "primary",
+                  div(style = 'overflow-x: scroll', DT::dataTableOutput("filenames"))
                 ),
-                actionButton("loadImages", tr("Load images"))
+                checkboxInput(
+                  "ignoreMissingLocation",
+                  tr("Ignore images with missing location"),
+                  value = F
+                ),
+                checkboxInput(
+                  "ignoreMissingTimestamp",
+                  tr("Ignore images with missing timestamp"),
+                  value = F
+                )
               ),
               tabPanel(
-                styledDiv("Demo", "italic"),
-                br(),
-                actionButton("example", tr("Start demo"))
+                styledDiv("Display", "bold"),
+                sliderInput(
+                  "imageQuality",
+                  tr("Image compression factor"),
+                  min = 0.05,
+                  max = 1,
+                  value = 0.3,
+                  ticks = T,
+                  step = 0.05
+                ),
+                sliderInput(
+                  "imageSize",
+                  tr("Image size (px)"),
+                  min = 0,
+                  max = 1000,
+                  value = 300,
+                  ticks = T,
+                  step = 1
+                )
               )
             )
           ),
-          tabPanel(
-            styledDiv("Filter", "bold"),
-            value = "filter",
-            shinydashboard::box(
-              title = tr("Imported files"),
-              width = NULL,
-              status = "primary",
-              div(style = 'overflow-x: scroll', DT::dataTableOutput("filenames"))
+          column(5, leaflet::leafletOutput("map")),
+          column(3, uiOutput("exifTable"))
+        ),
+        fluidRow(column(10, offset = 2, uiOutput("version")))
+      )
+    } else {
+      #Fullscreen mode, adapted from http://shiny.rstudio.com/gallery/superzip-example.html
+      div(
+        class = "outer",
+        tags$head(# Include our custom CSS
+          includeCSS("styles.css")),
+        # tags$script(HTML(if(!is.null(input$map_bounds)){"$('.leaflet-control').append('<a class=\\\"leaflet-control-fullscreen\\\"  onmouseover=\\\"\\\" style=\\\"cursor: pointer;\\\", onclick=\\\"Shiny.onInputChange(\\\'viewToggled\\\', false);\\\"><img src=\\\"/images/fullscreen.png\\\"></a>');"})),
+        leaflet::leafletOutput("map", width = "100%", height = "100%"),
+        absolutePanel(
+          id = "controls",
+          class = "panel panel-default",
+          fixed = TRUE,
+          draggable = TRUE,
+          top = 60,
+          left = "auto",
+          right = 20,
+          bottom = "auto",
+          width = 430,
+          height = "auto",
+          
+          h2("PhotoMapper"),
+          
+          tabsetPanel(
+            id = "menuTabs",
+            tabPanel(
+              styledDiv("Import", "bold"),
+              tabsetPanel(
+                tabPanel(
+                  styledDiv(tr("Local files"), "italic"),
+                  fileInput(
+                    "photos",
+                    tr("Choose images"),
+                    accept = c("image/jpg", ".jpg"),
+                    multiple = T,
+                    progressLabelAlignment = "center"
+                  )
+                ),
+                tabPanel(
+                  styledDiv(tr("Online images"), "italic"),
+                  tags$textarea(
+                    id = "urls",
+                    rows = 3,
+                    style = "width: 100%; font-size: 10px",
+                    placeholder = tr("Paste links")
+                  ),
+                  actionButton("loadImages", tr("Load images"))
+                ),
+                tabPanel(
+                  styledDiv("Demo", "italic"),
+                  br(),
+                  actionButton("example", tr("Start demo"))
+                )
+              )
             ),
-            checkboxInput(
-              "ignoreMissingLocation",
-              tr("Ignore images with missing location"),
-              value = F
+            tabPanel(
+              styledDiv("Filter", "bold"),
+              value = "filter",
+              shinydashboard::box(
+                title = tr("Imported files"),
+                width = NULL,
+                status = "primary",
+                div(style = 'overflow-x: scroll', DT::dataTableOutput("filenames"))
+              ),
+              checkboxInput(
+                "ignoreMissingLocation",
+                tr("Ignore images with missing location"),
+                value = F
+              ),
+              checkboxInput(
+                "ignoreMissingTimestamp",
+                tr("Ignore images with missing timestamp"),
+                value = F
+              )
             ),
-            checkboxInput(
-              "ignoreMissingTimestamp",
-              tr("Ignore images with missing timestamp"),
-              value = F
-            )
-          ),
-          tabPanel(
-            styledDiv("Display", "bold"),
-            sliderInput(
-              "imageQuality",
-              tr("Image compression factor"),
-              min = 0.05,
-              max = 1,
-              value = 0.3,
-              ticks = T,
-              step = 0.05
-            ),
-            sliderInput(
-              "imageSize",
-              tr("Image size (px)"),
-              min = 0,
-              max = 1000,
-              value = 300,
-              ticks = T,
-              step = 1
+            tabPanel(
+              styledDiv("Display", "bold"),
+              sliderInput(
+                "imageQuality",
+                tr("Image compression factor"),
+                min = 0.05,
+                max = 1,
+                value = 0.3,
+                ticks = T,
+                step = 0.05
+              ),
+              sliderInput(
+                "imageSize",
+                tr("Image size (px)"),
+                min = 0,
+                max = 1000,
+                value = 300,
+                ticks = T,
+                step = 1
+              )
             )
           )
         )
-      ),
-      column(5, leaflet::leafletOutput("map")),
-      column(3, uiOutput("exifTable"))
-    ))
+      )
+    }
   })
   
   shinyInput <- function(FUN, id, num, value, offset, ...) {
@@ -227,7 +370,7 @@ server <- function(input, output, session) {
         ),
         format = "%Y:%m:%d %H:%M:%OS"
       )
-    exifFiles <- exifFiles[order(exifFiles$digitised_timestamp),]
+    exifFiles <- exifFiles[order(exifFiles$digitised_timestamp), ]
     exifFiles$LatLon <-
       cbind(exifFiles$longitude, exifFiles$latitude)
     exifFiles$LatLonShort <-
@@ -281,12 +424,12 @@ server <- function(input, output, session) {
       
       if (ignoreMissingTimestamp &&
           length(which(exifFiles$missingTimestamp))) {
-        exifFiles[which(exifFiles$missingTimestamp), ]$checked = F
+        exifFiles[which(exifFiles$missingTimestamp),]$checked = F
       }
       
       if (ignoreMissingLocation &&
           length(which(exifFiles$missingLocation))) {
-        exifFiles[which(exifFiles$missingLocation), ]$checked = F
+        exifFiles[which(exifFiles$missingLocation),]$checked = F
       }
       
       return(exifFiles)
@@ -345,7 +488,7 @@ server <- function(input, output, session) {
       return(NULL)
     }
     exifFiles <- convertImages()
-    exifFiles <- exifFiles[selected$id, ]
+    exifFiles <- exifFiles[selected$id,]
     exifTemp <-
       exifFiles[, c("shortName",
                     "digitised_timestamp",
@@ -361,7 +504,7 @@ server <- function(input, output, session) {
   output$map <- leaflet::renderLeaflet({
     exifFiles <- convertImages()
     selectedRows <- input$filenames_rows_selected
-    exifFiles <- exifFiles[selectedRows, ]
+    exifFiles <- exifFiles[selectedRows,]
     
     validate(need(
       !is.null(exifFiles) && nrow(exifFiles),
@@ -380,7 +523,7 @@ server <- function(input, output, session) {
     ))
     
     popups <- sapply(seq_len(nrow(exifFiles)), function(i) {
-      popupLocalImage(exifFiles[i, ],
+      popupLocalImage(exifFiles[i,],
                       tooltipText = i,
                       imageSize)
     })
@@ -400,4 +543,4 @@ server <- function(input, output, session) {
       )
     return(map)
   })
-}
+  }

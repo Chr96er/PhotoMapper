@@ -7,8 +7,8 @@ library(shinyUtils)
 #########################
 
 fluidPage(
+  shinyjs::useShinyjs(),
   theme = "bootstrap.css",
-  titlePanel("PhotoMapper"),
   tags$head(
     tags$link(href = "tooltipster.bundle.min.css", rel = "stylesheet")
   ),
@@ -40,10 +40,5 @@ fluidPage(
     )
     ),
   uiOutput("head"),
-  uiOutput("body"),
-  uiOutput("manual"),
-  uiOutput("fluidRow1"),
-  fluidRow(column(
-    10, offset = 2, uiOutput("version"), uiOutput("mapJS")
-  ))
+  uiOutput("fluidRows")
   )
