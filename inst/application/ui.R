@@ -37,8 +37,13 @@ fluidPage(
       Shiny.onInputChange('language', language);
       });
       })"
-    )
+    ),
+    includeCSS("www/PhotoSwipe/photoswipe.css"),
+    includeCSS("www/PhotoSwipe/default-skin/default-skin.css"),
+    includeScript("www/PhotoSwipe/photoswipe-ui-default.min.js"),
+    includeScript("www/PhotoSwipe/photoswipe.min.js")
     ),
   uiOutput("head"),
-  uiOutput("fluidRows")
+  uiOutput("main"),
+  uiOutput("photoswipe")
   )

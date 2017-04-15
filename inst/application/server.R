@@ -72,11 +72,12 @@ server <- function(input, output, session) {
       }
       $('.leaflet-control-zoom').append('<a class=\\\"leaflet-control-fullscreen\\\"  onmouseover=\\\"\\\" style=\\\"cursor: pointer;\\\", onclick=\\\"Shiny.onInputChange(\\\'viewToggled\\\', resizeTrigger);\\\"><img src=\\\"/images/fullscreen.png\\\"></a>');
   }"
-)
+    )
+    shinyjs::runjs("openPhotoSwipe();")
     })
   
   #Use minimized view by default
-  view <- reactiveValues(default = T)
+  view <- reactiveValues(default = F)
   observeEvent(input$viewToggled, {
     if (is.null(input$viewToggled)) {
       return(NULL)
@@ -104,8 +105,9 @@ server <- function(input, output, session) {
                  currentTab$files = input$filesTabs
                })
   
-  output$fluidRows <- renderUI({
+  output$main <- renderUI({
     if (view$default) {
+      #Render minimized view
       list(
         fluidRow(
           titlePanel("PhotoMapper"),
@@ -127,8 +129,7 @@ server <- function(input, output, session) {
                       "photos",
                       tr("Choose images"),
                       accept = c("image/jpg", ".jpg"),
-                      multiple = T,
-                      progressLabelAlignment = "center"
+                      multiple = T
                     )
                   ),
                   tabPanel(
@@ -197,7 +198,11 @@ server <- function(input, output, session) {
             )
           ),
           column(5, leaflet::leafletOutput("map")),
-          column(3, uiOutput("exifTable"))
+          column(
+            3,
+            div(style = 'class: panel panel-default;fixed: TRUE;height: 600px',
+                insertPhotoswipe())
+          )
         ),
         fluidRow(column(10, offset = 2, uiOutput("version")))
       )
@@ -211,8 +216,8 @@ server <- function(input, output, session) {
         absolutePanel(
           id = "controls",
           class = "panel panel-default",
-          fixed = TRUE,
-          draggable = TRUE,
+          fixed = T,
+          draggable = T,
           top = 60,
           left = "auto",
           right = 20,
@@ -236,8 +241,7 @@ server <- function(input, output, session) {
                     "photos",
                     tr("Choose images"),
                     accept = c("image/jpg", ".jpg"),
-                    multiple = T,
-                    progressLabelAlignment = "center"
+                    multiple = T
                   )
                 ),
                 tabPanel(
@@ -304,6 +308,20 @@ server <- function(input, output, session) {
             ),
             selected = currentTab$menu
           )
+        ),
+        div(
+          absolutePanel(
+            id = "photoswipe",
+            class = "panel panel-default",
+            fixed = T,
+            bottom = 0,
+            left = 20,
+            right = "auto",
+            top = "auto",
+            width = 300,
+            height = 300,
+            insertPhotoswipe()
+          )
         )
       )
     }
@@ -363,7 +381,8 @@ server <- function(input, output, session) {
                  localFilenames <-
                    paste0(localFilenames, extension)
                  filenames$local <- localFilenames
-                 filenames$original <- basename(originalFilename)
+                 filenames$original <-
+                   basename(originalFilename)
                })
   
   computeExif <- reactive({
@@ -383,7 +402,8 @@ server <- function(input, output, session) {
     exifFiles <-
       imputeExif(exifFiles, c("latitude", "longitude"), c(0.001, 0.001))
     #ToDo: Impute time just like location
-    missingTimestamp <- which(exifFiles$digitised_timestamp == "")
+    missingTimestamp <-
+      which(exifFiles$digitised_timestamp == "")
     #Set timestamp to 1970
     exifFiles$digitised_timestamp[missingTimestamp] <-
       "1970:01:01 00:00:00"
@@ -404,7 +424,8 @@ server <- function(input, output, session) {
         ),
         format = "%Y:%m:%d %H:%M:%OS"
       )
-    exifFiles <- exifFiles[order(exifFiles$digitised_timestamp),]
+    exifFiles <-
+      exifFiles[order(exifFiles$digitised_timestamp),]
     exifFiles$LatLon <-
       cbind(exifFiles$longitude, exifFiles$latitude)
     exifFiles$LatLonShort <-
@@ -478,7 +499,8 @@ server <- function(input, output, session) {
     imageQuality <- input$imageQuality
     cleanUp("www/images/converted/", extension = extension)
     exifFiles$temppath <-
-      paste0("www/images/converted/", basename(exifFiles$filename))
+      paste0("www/images/converted/",
+             basename(exifFiles$filename))
     
     withProgress({
       for (i in 1:nrow(exifFiles)) {
@@ -491,10 +513,102 @@ server <- function(input, output, session) {
       }
     }, min = 1, max = nrow(exifFiles), message = tr("Converting images..."))
     
+    #Rotate images in case such information is avilable
     for (i in 1:nrow(exifFiles)) {
       rotateImage(exifFiles$temppath[i], exifFiles$orientation[i])
     }
     return(exifFiles)
+  })
+  
+  output$photoswipe <- renderUI({
+    exifFiles <- filteredData()
+    if (is.null(exifFiles)) {
+      return(NULL)
+    }
+    validate(need(
+      !is.null(exifFiles) && nrow(exifFiles),
+      message = tr(
+        "No images selected or no images with required exif information available"
+      )
+    ))
+    #build items array for photoswipe
+    normalizedImages <-
+      normalizeImage(exifFiles$filename, 400, base = "height")
+    items <-
+      jsonlite::toJSON(as.data.frame(cbind(
+        src = gsub("www/", "", exifFiles$filename),
+        w = normalizedImages$width,
+        h = round(normalizedImages$height, digits = 1)
+      )))
+    #Initialize photoswipe
+    tags$head(tags$script(HTML(
+      paste0(
+        "
+        var openPhotoSwipe = function() {
+        var pswpElement = document.querySelectorAll('.pswp')[0];
+        
+        // build items array
+        var items = ",
+        items
+        ,
+        ";
+        
+        // define options (if needed)
+        var options = {
+        // optionName: 'option value'
+        // for example:
+        index: 0,// start at first slide
+        modal: false,
+        pinchToClose: false,
+        closeOnScroll: false,
+        closeOnVerticalDrag: false,
+        escKey: false,
+        tapToClose: false,
+        clickToCloseNonZoomable: false,
+        closeEl: false,
+        closeElClasses: []
+        };
+        
+        // Initializes and opens PhotoSwipe
+        // not using *var* will ensure that PhotoSwipe becomes global and thus accessible within entire R session
+        gallery = new PhotoSwipe( pswpElement, PhotoSwipeUI_Default, items, options);
+        gallery.init();
+        gallery.listen('imageLoadComplete', function(index, item) {
+        // index - index of a slide that was loaded
+        // item - slide object
+        Shiny.onInputChange('photoswipe_index', index);
+        });
+        };"
+    )
+      )))
+    })
+  
+  observeEvent(input$photoswipe_index, {
+    if (is.null(input$photoswipe_index)) {
+      return(NULL)
+    }
+    exifFiles <- filteredData()
+    validate(need(
+      !is.null(exifFiles) && nrow(exifFiles),
+      message = tr(
+        "No images selected or no images with required exif information available"
+      )
+    ))
+    radiusHighlight <- rep(10, nrow(exifFiles))
+    radiusHighlight[input$photoswipe_index] <- 20
+    fillOpacityHighlight <- rep(0.5, nrow(exifFiles))
+    fillOpacityHighlight[input$photoswipe_index] <- 0.8
+    
+    leaflet::leafletProxy("map", data = matrix(unlist(exifFiles$LatLon), ncol = 2)) %>%
+      leaflet::clearMarkers() %>%
+      leaflet::addCircleMarkers(
+        color = grDevices::rainbow(nrow(exifFiles), alpha = NULL),
+        layerId = seq_len(nrow(exifFiles)),
+        # clusterOptions = leaflet::markerClusterOptions(),
+        stroke = F,
+        fillOpacity = fillOpacityHighlight,
+        radius = radiusHighlight
+      )
   })
   
   mouseover <- reactiveValues(toggle = T)
@@ -516,6 +630,13 @@ server <- function(input, output, session) {
     }
   })
   
+  observeEvent(input$map_marker_click, {
+    if (is.null(input$map_marker_click)) {
+      return(NULL)
+    }
+    shinyjs::runjs(paste0("gallery.goTo(", input$map_marker_click$id - 1, ");"))
+  })
+  
   output$exifTable <- renderUI({
     selected <- input$map_marker_mouseover
     if (is.null(selected) || !mouseover$toggle) {
@@ -534,34 +655,21 @@ server <- function(input, output, session) {
     htmlTable::htmlTable(t(exifTemp), header = "EXIF-Information")
   })
   
-  #' Wrapper for mapping images on leaflet map
-  output$map <- leaflet::renderLeaflet({
+  filteredData <- reactive({
     exifFiles <- convertImages()
     selectedRows <- input$filenames_rows_selected
     exifFiles <- exifFiles[selectedRows, ]
-    
+  })
+  
+  #' Wrapper for mapping images on leaflet map
+  output$map <- leaflet::renderLeaflet({
+    exifFiles <- filteredData()
     validate(need(
       !is.null(exifFiles) && nrow(exifFiles),
       message = tr(
         "No images selected or no images with required exif information available"
       )
     ))
-    
-    imageSize <- input$imageSize
-    
-    validate(need(
-      nrow(exifFiles) > 0,
-      message = tr(
-        "None of the uploaded images contain EXIF location information."
-      )
-    ))
-    
-    popups <- sapply(seq_len(nrow(exifFiles)), function(i) {
-      popupLocalImage(exifFiles[i, ],
-                      tooltipText = i,
-                      imageSize)
-    })
-    
     map <-
       leaflet::leaflet(matrix(unlist(exifFiles$LatLon), ncol = 2))
     map <- leaflet::addTiles(map)
@@ -569,9 +677,9 @@ server <- function(input, output, session) {
       leaflet::addCircleMarkers(
         map,
         color = grDevices::rainbow(nrow(exifFiles), alpha = NULL),
-        popup = popups,
+        # popup = popups,
         layerId = seq_len(nrow(exifFiles)),
-        clusterOptions = leaflet::markerClusterOptions(),
+        # clusterOptions = leaflet::markerClusterOptions(),
         stroke = F,
         fillOpacity = 0.5
       )

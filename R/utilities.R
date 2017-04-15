@@ -87,37 +87,42 @@ imputeExif <-
 #Based on code by https://github.com/environmentalinformatics-marburg/mapview/blob/master/R/popupImage.R
 #'@export
 popupLocalImage <-
-  function(exifFiles, tooltipText = "", size) {
-    img = exifFiles$temppath
-    info <-
-      sapply(img, function(...)
-        rgdal::GDALinfo(..., silent = TRUE))
-    yx_ratio <-
-      as.numeric(info["rows", ]) / as.numeric(info["columns", ])
-    
-    if (missing(size)) {
-      size <- 300
-    }
-    if (yx_ratio > 1) {
-      #More rows than columns -> size is basis for height
-      height <- size
-      width <- height / yx_ratio
-    } else {
-      width <- size
-      height <- yx_ratio * width
-    }
-    
-    HTML(
+  function(filename,
+           tooltipText = "",
+           size) {
+    imageDimensions <- normalizeImage(filename, size)
+    return(HTML(
       paste0(
-        "<img src='images/converted/",
-        basename(img),
-        "' width=",
-        width,
-        " height='",
-        height,
-        "'/>"
+        "<style> div.leaflet-popup-content {width:auto !important;}</style>, <img src='images/converted/",
+        basename(filename),
+        "' width='",
+        imageDimensions$width,
+        "' height='",
+        imageDimensions$height,
+        "' />"
       )
-    )
+    ))
+  }
+
+#'@export
+normalizeImage <-
+  function(filenames,
+           size = 300,
+           base = c("max", "width", "height")) {
+    as.data.frame(t(sapply(filenames, function(filename) {
+      info <- rgdal::GDALinfo(filename, silent = TRUE)
+      yx_ratio <-
+        as.numeric(info["rows"]) / as.numeric(info["columns"])
+      if ((base == "height") || (base == "max" && yx_ratio > 1)) {
+        #More rows than columns -> size is basis for height
+        height <- size
+        width <- height / yx_ratio
+      } else{
+        width <- size
+        height <- yx_ratio * width
+      }
+      return(c(height = height, width = width))
+    })))
   }
 
 #'@export
