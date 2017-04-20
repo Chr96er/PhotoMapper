@@ -15,6 +15,7 @@
 #'@importFrom leaflet leafletOutput
 #'@importFrom DT dataTableOutput
 #'@importFrom shinydashboard box
+#'@import magrittr
 
 extension <- ".jpg"
 

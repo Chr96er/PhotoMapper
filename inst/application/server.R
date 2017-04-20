@@ -4,10 +4,12 @@
 #'@importFrom leaflet renderLeaflet
 #'@importFrom exif read_exif
 #'@importFrom DT renderDataTable
+#'@import magrittr
 library(shiny)
 library(shinyUtils)
 library(PhotoMapper)
 library(data.table)
+library(magrittr)
 
 options(shiny.maxRequestSize = 30 * 1024 ^ 2)
 extension <- ".jpg"
@@ -45,168 +47,20 @@ server <- function(input, output, session) {
   })
   
   output$head <- renderUI({
-    list(htmlStyle(),
-         tags$script(
-           HTML(
-             "
-             $(function(){
-             $('body').on('click', '.leaflet-control-fullscreen', function(){
-             if(typeof resizeTrigger == 'undefined'){
-             resizeTrigger = true;
-             }
-             resizeTrigger = !resizeTrigger;
-             });
-             });"
-)
-           ))
+    list(htmlStyle())
 })
   
-  observe({
+  observeEvent({input$map_bounds
+          input$imageSize}, {
     if (is.null(input$map_bounds)) {
       return(NULL)
     }
-    shinyjs::runjs(
-      "if($('.leaflet-control-fullscreen').length === 0){
-      if(typeof resizeTrigger == 'undefined'){
-      resizeTrigger = true;
-      }
-      $('.leaflet-control-zoom').append('<a class=\\\"leaflet-control-fullscreen\\\"  onmouseover=\\\"\\\" style=\\\"cursor: pointer;\\\", onclick=\\\"Shiny.onInputChange(\\\'viewToggled\\\', resizeTrigger);\\\"><img src=\\\"/images/fullscreen.png\\\"></a>');
-  }"
-    )
-    shinyjs::runjs("openPhotoSwipe();")
+    shinyjs::runjs("if(typeof openPhotoSwipe === 'function'){
+                   openPhotoSwipe();
+                   }")
     })
   
-  #Use minimized view by default
-  view <- reactiveValues(default = F)
-  observeEvent(input$viewToggled, {
-    if (is.null(input$viewToggled)) {
-      return(NULL)
-    } else {
-      view$default = !view$default
-    }
-  })
-  
-  #Save tabs before switching between views
-  currentTab <-
-    reactiveValues(menu = "Import", files = "Local files")
-  observeEvent(view$default,
-               {
-                 if (is.null(input$menuTabs)) {
-                   return(NULL)
-                 }
-                 currentTab$menu = input$menuTabs
-               })
-  
-  observeEvent(view$default,
-               {
-                 if (is.null(input$filesTabs)) {
-                   return(NULL)
-                 }
-                 currentTab$files = input$filesTabs
-               })
-  
   output$main <- renderUI({
-    if (view$default) {
-      #Render minimized view
-      list(
-        fluidRow(
-          titlePanel("PhotoMapper"),
-          uiOutput("body"),
-          uiOutput("manual"),
-          column(
-            4,
-            tabsetPanel(
-              id = "menuTabs",
-              tabPanel(
-                styledDiv("Import", "bold"),
-                value = "Import",
-                tabsetPanel(
-                  id = "filesTabs",
-                  tabPanel(
-                    styledDiv(tr("Local files"), "italic"),
-                    value = "Local files",
-                    fileInput(
-                      "photos",
-                      tr("Choose images"),
-                      accept = c("image/jpg", ".jpg"),
-                      multiple = T
-                    )
-                  ),
-                  tabPanel(
-                    styledDiv(tr("Online images"), "italic"),
-                    value = "Online images",
-                    tags$textarea(
-                      id = "urls",
-                      rows = 3,
-                      style = "width: 100%; font-size: 10px",
-                      placeholder = tr("Paste links")
-                    ),
-                    actionButton("loadImages", tr("Load images"))
-                  ),
-                  tabPanel(
-                    styledDiv("Demo", "italic"),
-                    value = "Demo",
-                    br(),
-                    actionButton("example", tr("Start demo"))
-                  ),
-                  selected = currentTab$filesTabs
-                )
-              ),
-              tabPanel(
-                styledDiv("Filter", "bold"),
-                value = "filter",
-                shinydashboard::box(
-                  title = tr("Imported files"),
-                  width = NULL,
-                  status = "primary",
-                  div(style = 'overflow-x: scroll', DT::dataTableOutput("filenames"))
-                ),
-                checkboxInput(
-                  "ignoreMissingLocation",
-                  tr("Ignore images with missing location"),
-                  value = F
-                ),
-                checkboxInput(
-                  "ignoreMissingTimestamp",
-                  tr("Ignore images with missing timestamp"),
-                  value = F
-                )
-              ),
-              tabPanel(
-                styledDiv("Display", "bold"),
-                value = "Display",
-                sliderInput(
-                  "imageQuality",
-                  tr("Image compression factor"),
-                  min = 0.05,
-                  max = 1,
-                  value = 0.3,
-                  ticks = T,
-                  step = 0.05
-                ),
-                sliderInput(
-                  "imageSize",
-                  tr("Image size (px)"),
-                  min = 0,
-                  max = 1000,
-                  value = 300,
-                  ticks = T,
-                  step = 1
-                )
-              ),
-              selected = currentTab$menu
-            )
-          ),
-          column(5, leaflet::leafletOutput("map")),
-          column(
-            3,
-            div(style = 'class: panel panel-default;fixed: TRUE;height: 600px',
-                insertPhotoswipe())
-          )
-        ),
-        fluidRow(column(10, offset = 2, uiOutput("version")))
-      )
-    } else {
       #Fullscreen mode, adapted from http://shiny.rstudio.com/gallery/superzip-example.html
       div(
         class = "outer",
@@ -224,9 +78,7 @@ server <- function(input, output, session) {
           bottom = "auto",
           width = 430,
           height = "auto",
-          
           h2("PhotoMapper"),
-          
           tabsetPanel(
             id = "menuTabs",
             tabPanel(
@@ -260,8 +112,7 @@ server <- function(input, output, session) {
                   value = "Demo",
                   br(),
                   actionButton("example", tr("Start demo"))
-                ),
-                selected = currentTab$filesTabs
+                )
               )
             ),
             tabPanel(
@@ -305,26 +156,27 @@ server <- function(input, output, session) {
                 ticks = T,
                 step = 1
               )
-            ),
-            selected = currentTab$menu
-          )
-        ),
-        div(
-          absolutePanel(
-            id = "photoswipe",
-            class = "panel panel-default",
-            fixed = T,
-            bottom = 0,
-            left = 20,
-            right = "auto",
-            top = "auto",
-            width = 300,
-            height = 300,
-            insertPhotoswipe()
+            )
           )
         )
       )
-    }
+  })
+  
+  output$photoswipe <- renderUI({
+    div(
+      absolutePanel(
+        id = "photoswipe",
+        class = "panel panel-default",
+        fixed = T,
+        bottom = 0,
+        left = 20,
+        right = "auto",
+        top = "auto",
+        width = input$imageSize,
+        height = input$imageSize,
+        insertPhotoswipe()
+      )
+    )
   })
   
   shinyInput <- function(FUN, id, num, value, offset, ...) {
@@ -425,9 +277,7 @@ server <- function(input, output, session) {
         format = "%Y:%m:%d %H:%M:%OS"
       )
     exifFiles <-
-      exifFiles[order(exifFiles$digitised_timestamp),]
-    exifFiles$LatLon <-
-      cbind(exifFiles$longitude, exifFiles$latitude)
+      exifFiles[order(exifFiles$digitised_timestamp), ]
     exifFiles$LatLonShort <-
       paste(
         round(exifFiles$longitude, digits = 2),
@@ -446,12 +296,13 @@ server <- function(input, output, session) {
       return(NULL)
     }
     exifDT <-
-      exifFiles[, c("shortName", "digitised_timestamp", "LatLonShort")]
+      exifFiles[, c("shortName", "digitised_timestamp", "LatLonShort", "missingLocation", "missingTimestamp")]
     names(exifDT) <-
-      tr(c("Name", "Date/Time", "Latitude/Longitude"))
+      tr(c("Name", "Date/Time", "Latitude/Longitude", "Location", "Timestamp"))
     rowSelection <- which(exifFiles$checked)
     DT::datatable(
       exifDT,
+      filter = 'top',
       options = list(
         dom = "tip",
         drawCallback = DT::JS(
@@ -479,12 +330,12 @@ server <- function(input, output, session) {
       
       if (ignoreMissingTimestamp &&
           length(which(exifFiles$missingTimestamp))) {
-        exifFiles[which(exifFiles$missingTimestamp), ]$checked = F
+        exifFiles[which(exifFiles$missingTimestamp),]$checked = F
       }
       
       if (ignoreMissingLocation &&
           length(which(exifFiles$missingLocation))) {
-        exifFiles[which(exifFiles$missingLocation), ]$checked = F
+        exifFiles[which(exifFiles$missingLocation),]$checked = F
       }
       
       return(exifFiles)
@@ -520,8 +371,97 @@ server <- function(input, output, session) {
     return(exifFiles)
   })
   
-  output$photoswipe <- renderUI({
-    exifFiles <- filteredData()
+  mapData <- reactive({
+    if(is.null(input$map_bounds)){
+      return(convertImages())
+    }
+    exifFiles <- convertImages()
+    exifFiles <- as.data.table(exifFiles[,-12])
+    exifFiles[latitude < input$map_bounds$north & latitude > input$map_bounds$south
+              & longitude < input$map_bounds$east & longitude > input$map_bounds$west]
+  })
+  
+  observeEvent(input$photoswipe_index, {
+    if (is.null(input$photoswipe_index)) {
+      return(NULL)
+    }
+    exifFiles <- mapData()
+    
+    validate(need(
+      !is.null(exifFiles) && nrow(exifFiles),
+      message = tr(
+        "No images selected or no images with required exif information available"
+      )
+    ))
+    radiusHighlight <- rep(10, nrow(exifFiles))
+    radiusHighlight[input$photoswipe_index + 1] <- 20
+    fillOpacityHighlight <- rep(0.5, nrow(exifFiles))
+    fillOpacityHighlight[input$photoswipe_index + 1] <- 0.8
+    
+    leaflet::leafletProxy("map", data = cbind(exifFiles$longitude, exifFiles$latitude)) %>%
+      leaflet::clearMarkerClusters() %>%
+      leaflet::addCircleMarkers(
+        color = grDevices::rainbow(nrow(exifFiles), alpha = NULL),
+        layerId = seq_len(nrow(exifFiles)),
+        clusterOptions = leaflet::markerClusterOptions(),
+        stroke = F,
+        fillOpacity = fillOpacityHighlight,
+        radius = radiusHighlight
+      )
+  })
+  
+  mouseover <- reactiveValues(toggle = T)
+  observeEvent({
+    input$map_marker_mouseover
+    input$map_marker_mouseout
+  }, {
+    if (is.null(input$map_marker_mouseover) ||
+        (
+          mouseover$toggle &&
+          !is.null(input$map_marker_mouseout$id) &&
+          input$map_marker_mouseout$id == input$map_marker_mouseover$id
+          #If mouseovertoggle is true and mouseout and mouseover have same id
+          # --> This means that mouse left marker
+        )) {
+      mouseover$toggle <- F
+    } else{
+      mouseover$toggle <- T
+    }
+  })
+  
+  observeEvent(input$map_marker_click, {
+    if (is.null(input$map_marker_click)) {
+      return(NULL)
+    }
+    shinyjs::runjs(paste0("gallery.goTo(", input$map_marker_click$id - 1, ");"))
+  })
+  
+  output$exifTable <- renderUI({
+    selected <- input$map_marker_mouseover
+    if (is.null(selected) || !mouseover$toggle) {
+      return(NULL)
+    }
+    exifFiles <- mapData()
+    exifFiles <- exifFiles[selected$id,]
+    exifTemp <-
+      exifFiles[, c("shortName",
+                    "digitised_timestamp",
+                    "LatLonShort",
+                    "altitude")]
+    names(exifTemp) <-
+      tr(c("Name", "Date/Time", "Latitude/Longitude", "Altitude"))
+    rownames(exifTemp) <- ""
+    htmlTable::htmlTable(t(exifTemp), header = "EXIF-Information")
+  })
+  
+  filteredData <- reactive({
+    exifFiles <- convertImages()
+    selectedRows <- input$filenames_rows_selected
+    exifFiles <- exifFiles[selectedRows,]
+  })
+  
+  output$photoswipeInitialization <- renderUI({
+    exifFiles <- mapData()
     if (is.null(exifFiles)) {
       return(NULL)
     }
@@ -533,7 +473,7 @@ server <- function(input, output, session) {
     ))
     #build items array for photoswipe
     normalizedImages <-
-      normalizeImage(exifFiles$filename, 400, base = "height")
+      normalizeImage(exifFiles$filename, input$imageSize, base = "height")
     items <-
       jsonlite::toJSON(as.data.frame(cbind(
         src = gsub("www/", "", exifFiles$filename),
@@ -573,93 +513,15 @@ server <- function(input, output, session) {
         // not using *var* will ensure that PhotoSwipe becomes global and thus accessible within entire R session
         gallery = new PhotoSwipe( pswpElement, PhotoSwipeUI_Default, items, options);
         gallery.init();
-        gallery.listen('imageLoadComplete', function(index, item) {
+        gallery.listen('afterChange', function() {
         // index - index of a slide that was loaded
         // item - slide object
-        Shiny.onInputChange('photoswipe_index', index);
+        Shiny.onInputChange('photoswipe_index', gallery.getCurrentIndex());
         });
         };"
     )
       )))
     })
-  
-  observeEvent(input$photoswipe_index, {
-    if (is.null(input$photoswipe_index)) {
-      return(NULL)
-    }
-    exifFiles <- filteredData()
-    validate(need(
-      !is.null(exifFiles) && nrow(exifFiles),
-      message = tr(
-        "No images selected or no images with required exif information available"
-      )
-    ))
-    radiusHighlight <- rep(10, nrow(exifFiles))
-    radiusHighlight[input$photoswipe_index] <- 20
-    fillOpacityHighlight <- rep(0.5, nrow(exifFiles))
-    fillOpacityHighlight[input$photoswipe_index] <- 0.8
-    
-    leaflet::leafletProxy("map", data = matrix(unlist(exifFiles$LatLon), ncol = 2)) %>%
-      leaflet::clearMarkers() %>%
-      leaflet::addCircleMarkers(
-        color = grDevices::rainbow(nrow(exifFiles), alpha = NULL),
-        layerId = seq_len(nrow(exifFiles)),
-        # clusterOptions = leaflet::markerClusterOptions(),
-        stroke = F,
-        fillOpacity = fillOpacityHighlight,
-        radius = radiusHighlight
-      )
-  })
-  
-  mouseover <- reactiveValues(toggle = T)
-  observeEvent({
-    input$map_marker_mouseover
-    input$map_marker_mouseout
-  }, {
-    if (is.null(input$map_marker_mouseover) ||
-        (
-          mouseover$toggle &&
-          !is.null(input$map_marker_mouseout$id) &&
-          input$map_marker_mouseout$id == input$map_marker_mouseover$id
-          #If mouseovertoggle is true and mouseout and mouseover have same id
-          # --> This means that mouse left marker
-        )) {
-      mouseover$toggle <- F
-    } else{
-      mouseover$toggle <- T
-    }
-  })
-  
-  observeEvent(input$map_marker_click, {
-    if (is.null(input$map_marker_click)) {
-      return(NULL)
-    }
-    shinyjs::runjs(paste0("gallery.goTo(", input$map_marker_click$id - 1, ");"))
-  })
-  
-  output$exifTable <- renderUI({
-    selected <- input$map_marker_mouseover
-    if (is.null(selected) || !mouseover$toggle) {
-      return(NULL)
-    }
-    exifFiles <- convertImages()
-    exifFiles <- exifFiles[selected$id, ]
-    exifTemp <-
-      exifFiles[, c("shortName",
-                    "digitised_timestamp",
-                    "LatLonShort",
-                    "altitude")]
-    names(exifTemp) <-
-      tr(c("Name", "Date/Time", "Latitude/Longitude", "Altitude"))
-    rownames(exifTemp) <- ""
-    htmlTable::htmlTable(t(exifTemp), header = "EXIF-Information")
-  })
-  
-  filteredData <- reactive({
-    exifFiles <- convertImages()
-    selectedRows <- input$filenames_rows_selected
-    exifFiles <- exifFiles[selectedRows, ]
-  })
   
   #' Wrapper for mapping images on leaflet map
   output$map <- leaflet::renderLeaflet({
@@ -670,18 +532,22 @@ server <- function(input, output, session) {
         "No images selected or no images with required exif information available"
       )
     ))
+    radiusHighlight <- rep(10, nrow(exifFiles))
+    radiusHighlight[1] <- 20
+    fillOpacityHighlight <- rep(0.5, nrow(exifFiles))
+    fillOpacityHighlight[1] <- 0.8
     map <-
-      leaflet::leaflet(matrix(unlist(exifFiles$LatLon), ncol = 2))
+      leaflet::leaflet(cbind(exifFiles$longitude, exifFiles$latitude))
     map <- leaflet::addTiles(map)
     map <-
       leaflet::addCircleMarkers(
         map,
         color = grDevices::rainbow(nrow(exifFiles), alpha = NULL),
-        # popup = popups,
         layerId = seq_len(nrow(exifFiles)),
-        # clusterOptions = leaflet::markerClusterOptions(),
+        clusterOptions = leaflet::markerClusterOptions(),
         stroke = F,
-        fillOpacity = 0.5
+        fillOpacity = fillOpacityHighlight,
+        radius = radiusHighlight
       )
     return(map)
   })

@@ -45,5 +45,6 @@ fluidPage(
     ),
   uiOutput("head"),
   uiOutput("main"),
-  uiOutput("photoswipe")
+  uiOutput("photoswipe"),
+  uiOutput("photoswipeInitialization")
   )
