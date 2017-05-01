@@ -561,7 +561,12 @@ server <- function(input, output, session) {
     fillOpacityHighlight <- rep(0.5, nrow(exifFiles))
     fillOpacityHighlight[1] <- 0.8
     leaflet::leafletProxy("map", data = cbind(exifFiles$longitude, exifFiles$latitude)) %>%
-      leaflet::addTiles() %>%
+      leaflet::fitBounds(
+        min(exifFiles$longitude),
+        min(exifFiles$latitude),
+        max(exifFiles$longitude),
+        max(exifFiles$latitude)
+      ) %>%
       leaflet::addCircleMarkers(
         color = grDevices::rainbow(nrow(exifFiles), alpha = NULL),
         layerId = seq_len(nrow(exifFiles)),
