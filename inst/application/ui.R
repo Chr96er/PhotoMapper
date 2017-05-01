@@ -14,9 +14,9 @@ fluidPage(
   ),
   tags$head(tags$script(src = "tooltipster.bundle.min.js")),
   tags$head(
-    tags$link(href = "countryselect/css/countrySelect.css", rel = "stylesheet")
+    tags$link(href = "countryselect/css/countrySelect.min.css", rel = "stylesheet")
   ),
-  tags$head(tags$script(src = "countryselect/js/countrySelect.js")),
+  tags$head(tags$script(src = "countryselect/js/countrySelect.min.js")),
   tags$head(
     HTML(
       '<input type="text" id="country">

@@ -1,16 +1,18 @@
 release
  - test coverage 100%
  - display time/location in popup image
- - cleanup directories
- - resource file containing text/translations
- - table/filter containing exif information
- - tabbing: import, filter, display, social
+ x cleanup directories
+ x resource file containing text/translations
+ x table/filter containing exif information
+ x tabbing: import, filter, display
+ x timeline: in new tab or linked to map
 
 future
+ - mobile optimization
+ - exif-js(https://github.com/exif-js/exif-js)
  - replace column layout by fullscreen layout: worldmap as default view
- - client side compression
- - social media sharing
+ - client side compression (http://makeitsolutions.com/labs/jic/)
+ - social media sharing (possibly https://shiny.rstudio.com/articles/bookmarking-state.html if persistent file storage possible)
  - context menu: open image in new tab, download
  - mouseover: display image in full size
- - timeline: in new tab or linked to map
  - mouseover: display image in sidebar

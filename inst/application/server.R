@@ -5,11 +5,11 @@
 #'@importFrom exif read_exif
 #'@importFrom DT renderDataTable
 #'@import magrittr
-library(shiny)
-library(shinyUtils)
-library(PhotoMapper)
-library(data.table)
-library(magrittr)
+require(shiny)
+require(shinyUtils)
+require(PhotoMapper)
+require(data.table)
+require(magrittr)
 
 options(shiny.maxRequestSize = 30 * 1024 ^ 2)
 extension <- ".jpg"
@@ -21,8 +21,8 @@ translation <-
     as.is = T
   ))
 
+
 server <- function(input, output, session) {
-  ################Utility functions#################
   tr <- function(text) {
     # translates text into current language
     sapply(text, function(s) {
@@ -48,124 +48,126 @@ server <- function(input, output, session) {
   
   output$head <- renderUI({
     list(htmlStyle())
-})
+  })
   
-  observeEvent({input$map_bounds
-          input$imageSize}, {
+  observeEvent({
+    input$map_bounds
+    input$imageSize
+  }, {
     if (is.null(input$map_bounds)) {
       return(NULL)
     }
     shinyjs::runjs("if(typeof openPhotoSwipe === 'function'){
                    openPhotoSwipe();
-                   }")
+  }")
     })
   
   output$main <- renderUI({
-      #Fullscreen mode, adapted from http://shiny.rstudio.com/gallery/superzip-example.html
-      div(
-        class = "outer",
-        tags$head(# Include our custom CSS
-          includeCSS("styles.css")),
-        leaflet::leafletOutput("map", width = "100%", height = "100%"),
-        absolutePanel(
-          id = "controls",
-          class = "panel panel-default",
-          fixed = T,
-          draggable = T,
-          top = 60,
-          left = "auto",
-          right = 20,
-          bottom = "auto",
-          width = 430,
-          height = "auto",
-          h2("PhotoMapper"),
-          tabsetPanel(
-            id = "menuTabs",
-            tabPanel(
-              styledDiv("Import", "bold"),
-              value = "Import",
-              tabsetPanel(
-                id = "filesTabs",
-                tabPanel(
-                  styledDiv(tr("Local files"), "italic"),
-                  value = "Local files",
-                  fileInput(
-                    "photos",
-                    tr("Choose images"),
-                    accept = c("image/jpg", ".jpg"),
-                    multiple = T
-                  )
-                ),
-                tabPanel(
-                  styledDiv(tr("Online images"), "italic"),
-                  value = "Online images",
-                  tags$textarea(
-                    id = "urls",
-                    rows = 3,
-                    style = "width: 100%; font-size: 10px",
-                    placeholder = tr("Paste links")
-                  ),
-                  actionButton("loadImages", tr("Load images"))
-                ),
-                tabPanel(
-                  styledDiv("Demo", "italic"),
-                  value = "Demo",
-                  br(),
-                  actionButton("example", tr("Start demo"))
+    #Fullscreen mode, adapted from http://shiny.rstudio.com/gallery/superzip-example.html
+    div(
+      class = "outer",
+      tags$head(# Include our custom CSS
+        includeCSS("styles.css")),
+      leaflet::leafletOutput("map", width = "100%", height = "100%"),
+      absolutePanel(
+        id = "controls",
+        class = "panel panel-default",
+        fixed = T,
+        draggable = T,
+        top = 60,
+        left = "auto",
+        right = 20,
+        bottom = "auto",
+        width = 430,
+        height = "auto",
+        h2("PhotoMapper"),
+        tabsetPanel(
+          id = "menuTabs",
+          tabPanel(
+            styledDiv("Import", "bold"),
+            value = "Import",
+            tabsetPanel(
+              id = "filesTabs",
+              tabPanel(
+                styledDiv(tr("Local files"), "italic"),
+                value = "Local files",
+                fileInput(
+                  "photos",
+                  tr("Choose images"),
+                  accept = c("image/jpg", ".jpg"),
+                  multiple = T
                 )
+              ),
+              tabPanel(
+                styledDiv(tr("Online images"), "italic"),
+                value = "Online images",
+                tags$textarea(
+                  id = "urls",
+                  rows = 3,
+                  style = "width: 100%; font-size: 10px",
+                  placeholder = tr("Paste links")
+                ),
+                actionButton("loadImages", tr("Load images"))
+              ),
+              tabPanel(
+                styledDiv("Demo", "italic"),
+                value = "Demo",
+                br(),
+                actionButton("example", tr("Start demo"))
               )
+            )
+          ),
+          tabPanel(
+            styledDiv("Filter", "bold"),
+            value = "filter",
+            shinydashboard::box(
+              title = tr("Imported files"),
+              width = NULL,
+              status = "primary",
+              div(style = 'overflow-x: scroll', DT::dataTableOutput("filenames"))
             ),
-            tabPanel(
-              styledDiv("Filter", "bold"),
-              value = "filter",
-              shinydashboard::box(
-                title = tr("Imported files"),
-                width = NULL,
-                status = "primary",
-                div(style = 'overflow-x: scroll', DT::dataTableOutput("filenames"))
-              ),
-              checkboxInput(
-                "ignoreMissingLocation",
-                tr("Ignore images with missing location"),
-                value = F
-              ),
-              checkboxInput(
-                "ignoreMissingTimestamp",
-                tr("Ignore images with missing timestamp"),
-                value = F
-              )
+            checkboxInput(
+              "ignoreMissingLocation",
+              tr("Ignore images with missing location"),
+              value = F
             ),
-            tabPanel(
-              styledDiv("Display", "bold"),
-              value = "Display",
-              sliderInput(
-                "imageQuality",
-                tr("Image compression factor"),
-                min = 0.05,
-                max = 1,
-                value = 0.3,
-                ticks = T,
-                step = 0.05
-              ),
-              sliderInput(
-                "imageSize",
-                tr("Image size (px)"),
-                min = 0,
-                max = 1000,
-                value = 300,
-                ticks = T,
-                step = 1
-              )
+            checkboxInput(
+              "ignoreMissingTimestamp",
+              tr("Ignore images with missing timestamp"),
+              value = F
+            )
+          ),
+          tabPanel(
+            styledDiv("Display", "bold"),
+            value = "Display",
+            sliderInput(
+              "imageQuality",
+              tr("Image compression factor"),
+              min = 0.05,
+              max = 1,
+              value = 0.3,
+              ticks = T,
+              step = 0.05
+            ),
+            sliderInput(
+              "imageSize",
+              tr("Image size (px)"),
+              min = 0,
+              max = 1000,
+              value = 300,
+              ticks = T,
+              step = 1
             )
           )
         )
       )
+    )
   })
   
   output$photoswipe <- renderUI({
     div(
       absolutePanel(
-        id = "photoswipe",
+        id = "photoswipeInner",
         class = "panel panel-default",
         fixed = T,
         bottom = 0,
@@ -174,7 +176,8 @@ server <- function(input, output, session) {
         top = "auto",
         width = input$imageSize,
         height = input$imageSize,
-        insertPhotoswipe()
+        insertPhotoswipe(),
+        hidden = ""
       )
     )
   })
@@ -296,9 +299,21 @@ server <- function(input, output, session) {
       return(NULL)
     }
     exifDT <-
-      exifFiles[, c("shortName", "digitised_timestamp", "LatLonShort", "missingLocation", "missingTimestamp")]
+      exifFiles[, c(
+        "shortName",
+        "digitised_timestamp",
+        "LatLonShort",
+        "missingLocation",
+        "missingTimestamp"
+      )]
     names(exifDT) <-
-      tr(c("Name", "Date/Time", "Latitude/Longitude", "Location", "Timestamp"))
+      tr(c(
+        "Name",
+        "Date/Time",
+        "Latitude/Longitude",
+        "Location",
+        "Timestamp"
+      ))
     rowSelection <- which(exifFiles$checked)
     DT::datatable(
       exifDT,
@@ -372,16 +387,25 @@ server <- function(input, output, session) {
   })
   
   mapData <- reactive({
-    if(is.null(input$map_bounds)){
-      return(convertImages())
-    }
     exifFiles <- convertImages()
+    if (is.null(exifFiles)) {
+      return(NULL)
+    }
+    if (is.null(input$map_bounds)) {
+      return(exifFiles)
+    }
     exifFiles <- as.data.table(exifFiles[,-12])
-    exifFiles[latitude < input$map_bounds$north & latitude > input$map_bounds$south
-              & longitude < input$map_bounds$east & longitude > input$map_bounds$west]
+    exifFiles[latitude < input$map_bounds$north &
+                latitude > input$map_bounds$south
+              &
+                longitude < input$map_bounds$east &
+                longitude > input$map_bounds$west]
   })
   
-  observeEvent(input$photoswipe_index, {
+  observeEvent({
+    input$photoswipe_index
+    input$map_bounds
+  }, {
     if (is.null(input$photoswipe_index)) {
       return(NULL)
     }
@@ -489,8 +513,7 @@ server <- function(input, output, session) {
         
         // build items array
         var items = ",
-        items
-        ,
+        items,
         ";
         
         // define options (if needed)
@@ -517,14 +540,15 @@ server <- function(input, output, session) {
         // index - index of a slide that was loaded
         // item - slide object
         Shiny.onInputChange('photoswipe_index', gallery.getCurrentIndex());
-        });
+        })
+        $('#photoswipeInner').removeAttr('hidden');
         };"
     )
       )))
-    })
+})
   
   #' Wrapper for mapping images on leaflet map
-  output$map <- leaflet::renderLeaflet({
+  observe({
     exifFiles <- filteredData()
     validate(need(
       !is.null(exifFiles) && nrow(exifFiles),
@@ -536,12 +560,9 @@ server <- function(input, output, session) {
     radiusHighlight[1] <- 20
     fillOpacityHighlight <- rep(0.5, nrow(exifFiles))
     fillOpacityHighlight[1] <- 0.8
-    map <-
-      leaflet::leaflet(cbind(exifFiles$longitude, exifFiles$latitude))
-    map <- leaflet::addTiles(map)
-    map <-
+    leaflet::leafletProxy("map", data = cbind(exifFiles$longitude, exifFiles$latitude)) %>%
+      leaflet::addTiles() %>%
       leaflet::addCircleMarkers(
-        map,
         color = grDevices::rainbow(nrow(exifFiles), alpha = NULL),
         layerId = seq_len(nrow(exifFiles)),
         clusterOptions = leaflet::markerClusterOptions(),
@@ -549,6 +570,14 @@ server <- function(input, output, session) {
         fillOpacity = fillOpacityHighlight,
         radius = radiusHighlight
       )
-    return(map)
   })
-  }
+  
+  #Initial rendering of map
+  output$map <- leaflet::renderLeaflet({
+    leaflet::leaflet() %>%
+      leaflet::setView(lng = 0,
+                       lat = 0,
+                       zoom = 2) %>%
+      leaflet::addTiles()
+  })
+}
