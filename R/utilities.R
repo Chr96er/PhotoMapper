@@ -168,8 +168,3 @@ substrRight <- function(x, n) {
     return(x)
   }
 }
-
-#'@export
-addTranslation <- function(key, english, german) {
-  
-}

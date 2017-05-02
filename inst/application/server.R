@@ -63,105 +63,54 @@ server <- function(input, output, session) {
     })
   
   output$main <- renderUI({
-    #Fullscreen mode, adapted from http://shiny.rstudio.com/gallery/superzip-example.html
-    div(
-      class = "outer",
-      tags$head(# Include our custom CSS
-        includeCSS("styles.css")),
-      leaflet::leafletOutput("map", width = "100%", height = "100%"),
-      absolutePanel(
-        id = "controls",
-        class = "panel panel-default",
-        fixed = T,
-        draggable = T,
-        top = 60,
-        left = "auto",
-        right = 20,
-        bottom = "auto",
-        width = 430,
-        height = "auto",
-        h2("PhotoMapper"),
-        tabsetPanel(
-          id = "menuTabs",
-          tabPanel(
-            styledDiv("Import", "bold"),
-            value = "Import",
-            tabsetPanel(
-              id = "filesTabs",
-              tabPanel(
-                styledDiv(tr("Local files"), "italic"),
-                value = "Local files",
-                fileInput(
-                  "photos",
-                  tr("Choose images"),
-                  accept = c("image/jpg", ".jpg"),
-                  multiple = T
-                )
-              ),
-              tabPanel(
-                styledDiv(tr("Online images"), "italic"),
-                value = "Online images",
-                tags$textarea(
-                  id = "urls",
-                  rows = 3,
-                  style = "width: 100%; font-size: 10px",
-                  placeholder = tr("Paste links")
-                ),
-                actionButton("loadImages", tr("Load images"))
-              ),
-              tabPanel(
-                styledDiv("Demo", "italic"),
-                value = "Demo",
-                br(),
-                actionButton("example", tr("Start demo"))
-              )
-            )
-          ),
-          tabPanel(
-            styledDiv("Filter", "bold"),
-            value = "filter",
-            shinydashboard::box(
-              title = tr("Imported files"),
-              width = NULL,
-              status = "primary",
-              div(style = 'overflow-x: scroll', DT::dataTableOutput("filenames"))
-            ),
-            checkboxInput(
-              "ignoreMissingLocation",
-              tr("Ignore images with missing location"),
-              value = F
-            ),
-            checkboxInput(
-              "ignoreMissingTimestamp",
-              tr("Ignore images with missing timestamp"),
-              value = F
-            )
-          ),
-          tabPanel(
-            styledDiv("Display", "bold"),
-            value = "Display",
-            sliderInput(
-              "imageQuality",
-              tr("Image compression factor"),
-              min = 0.05,
-              max = 1,
-              value = 0.3,
-              ticks = T,
-              step = 0.05
-            ),
-            sliderInput(
-              "imageSize",
-              tr("Image size (px)"),
-              min = 0,
-              max = 1000,
-              value = 300,
-              ticks = T,
-              step = 1
-            )
+    if (is.null(input$mobileBrowser)) {
+      return(NULL)
+    }
+    if (!input$mobileBrowser) {
+      #   #Fullscreen mode, adapted from http://shiny.rstudio.com/gallery/superzip-example.html
+      div(
+        class = "outer",
+        tags$head(# Include our custom CSS
+          includeCSS("styles.css")),
+        leaflet::leafletOutput("map", width = "100%", height = "100%"),
+        absolutePanel(
+          id = "controls",
+          class = "panel panel-default",
+          fixed = T,
+          draggable = T,
+          top = 60,
+          left = "auto",
+          right = 20,
+          bottom = "auto",
+          width = 430,
+          height = "auto",
+          h2("PhotoMapper"),
+          insertMainTabpanel()
+        )
+      )
+    } else {
+      #mobile mode
+      fluidRow(
+        column(width = 3, insertMainTabpanel()),
+        column(width = 6, leaflet::leafletOutput("map")),
+        column(
+          width = 3,
+          absolutePanel(
+            id = "photoswipeInner",
+            class = "panel panel-default",
+            fixed = T,
+            # bottom = 0,
+            # left = 20,
+            # right = "auto",
+            # top = "auto",
+            width = input$imageSize,
+            height = input$imageSize,
+            insertPhotoswipe(),
+            hidden = ""
           )
         )
       )
-    )
+    }
   })
   
   output$photoswipe <- renderUI({
@@ -176,8 +125,7 @@ server <- function(input, output, session) {
         top = "auto",
         width = input$imageSize,
         height = input$imageSize,
-        insertPhotoswipe(),
-        hidden = ""
+        insertPhotoswipe()
       )
     )
   })
@@ -396,8 +344,7 @@ server <- function(input, output, session) {
     }
     exifFiles <- as.data.table(exifFiles[,-12])
     exifFiles[latitude < input$map_bounds$north &
-                latitude > input$map_bounds$south
-              &
+                latitude > input$map_bounds$south &
                 longitude < input$map_bounds$east &
                 longitude > input$map_bounds$west]
   })
@@ -504,6 +451,12 @@ server <- function(input, output, session) {
         w = normalizedImages$width,
         h = round(normalizedImages$height, digits = 1)
       )))
+    
+    #Open photoswipe, i.e. set imagesize
+    updateSliderInput(session = session,
+                      inputId = "imageSize",
+                      value = 300)
+    
     #Initialize photoswipe
     tags$head(tags$script(HTML(
       paste0(
@@ -540,8 +493,7 @@ server <- function(input, output, session) {
         // index - index of a slide that was loaded
         // item - slide object
         Shiny.onInputChange('photoswipe_index', gallery.getCurrentIndex());
-        })
-        $('#photoswipeInner').removeAttr('hidden');
+        });
         };"
     )
       )))
@@ -585,4 +537,86 @@ server <- function(input, output, session) {
                        zoom = 2) %>%
       leaflet::addTiles()
   })
+  
+  insertMainTabpanel <- function() {
+    tabsetPanel(
+      id = "menuTabs",
+      tabPanel(
+        styledDiv("Import", "bold"),
+        value = "Import",
+        tabsetPanel(
+          id = "filesTabs",
+          tabPanel(
+            styledDiv(tr("Local files"), "italic"),
+            value = "Local files",
+            fileInput(
+              "photos",
+              tr("Choose images"),
+              accept = c("image/jpg", ".jpg"),
+              multiple = T
+            )
+          ),
+          tabPanel(
+            styledDiv(tr("Online images"), "italic"),
+            value = "Online images",
+            tags$textarea(
+              id = "urls",
+              rows = 3,
+              style = "width: 100%; font-size: 10px",
+              placeholder = tr("Paste links")
+            ),
+            actionButton("loadImages", tr("Load images"))
+          ),
+          tabPanel(
+            styledDiv("Demo", "italic"),
+            value = "Demo",
+            br(),
+            actionButton("example", tr("Start demo"))
+          )
+        )
+      ),
+      tabPanel(
+        styledDiv("Filter", "bold"),
+        value = "filter",
+        shinydashboard::box(
+          title = tr("Imported files"),
+          width = NULL,
+          status = "primary",
+          div(style = 'overflow-x: scroll', DT::dataTableOutput("filenames"))
+        ),
+        checkboxInput(
+          "ignoreMissingLocation",
+          tr("Ignore images with missing location"),
+          value = F
+        ),
+        checkboxInput(
+          "ignoreMissingTimestamp",
+          tr("Ignore images with missing timestamp"),
+          value = F
+        )
+      ),
+      tabPanel(
+        styledDiv("Display", "bold"),
+        value = "Display",
+        sliderInput(
+          "imageQuality",
+          tr("Image compression factor"),
+          min = 0.05,
+          max = 1,
+          value = 0.3,
+          ticks = T,
+          step = 0.05
+        ),
+        sliderInput(
+          "imageSize",
+          tr("Image size (px)"),
+          min = 0,
+          max = 1000,
+          value = 0,
+          ticks = T,
+          step = 1
+        )
+      )
+    )
+  }
 }
