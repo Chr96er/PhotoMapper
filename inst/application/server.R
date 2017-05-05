@@ -178,8 +178,13 @@ server <- function(input, output, session) {
                  photoFilenames <-
                    as.matrix(photos)[, c("name", "datapath")]
                  names(photoFilenames) <- NULL
-                 localFilenames <- photoFilenames[, 2]
-                 originalFilename <- photoFilenames[, 1]
+                 if(is.null(nrow(photoFilenames))){
+                   localFilenames <- photoFilenames[2]
+                   originalFilename <- photoFilenames[1]
+                 } else {
+                   localFilenames <- photoFilenames[, 2]
+                   originalFilename <- photoFilenames[, 1]
+                 }
                  file.rename(localFilenames, paste0(localFilenames, extension))
                  localFilenames <-
                    paste0(localFilenames, extension)
