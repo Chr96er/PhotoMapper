@@ -452,7 +452,7 @@ server <- function(input, output, session) {
       normalizeImage(exifFiles$filename, input$imageSize, base = "height")
     items <-
       jsonlite::toJSON(as.data.frame(cbind(
-        src = gsub("www/", "", exifFiles$filename),
+        src = gsub("www/", "", exifFiles$temppath),
         w = normalizedImages$width,
         h = round(normalizedImages$height, digits = 1)
       )))
