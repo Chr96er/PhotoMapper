@@ -7,5 +7,5 @@ Depends: R (>= 3.3.2), shiny, shinyUtils, magrittr
 Imports: imager, jpeg, leaflet, ggmap, htmlwidgets, exif, rgdal, DT, shinydashboard
 License: GPL-3
 LazyData: true
-Remotes: github::chr96er/exif, github::chr96er/shiny, github::chr96er/shinyUtils
+Remotes: github::chr96er/exif, github::chr96er/shinyUtils
 RoxygenNote: 6.0.1
