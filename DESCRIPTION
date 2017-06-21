@@ -4,7 +4,7 @@ Version: 0.2.2.84658
 Authors@R: person("Christian", "Homberg", email = "christianhomberg@gmail.com", role = c("aut", "cre"))
 Description: The PhotoMapper application plots uploaded images on a map based on EXIF location and time information.
 Depends: R (>= 3.3.2), shiny, shinyUtils, magrittr
-Imports: imager, jpeg, leaflet, ggmap, htmlwidgets, exif, DT, shinydashboard, shinyjs
+Imports: imager, jpeg, leaflet, ggmap, htmlwidgets, exif, DT, shinydashboard, shinyjs, imputeTS
 License: GPL-3
 LazyData: true
 Remotes: github::chr96er/exif, github::chr96er/shinyUtils

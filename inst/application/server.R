@@ -5,6 +5,8 @@
 #'@importFrom exif read_exif
 #'@importFrom DT renderDataTable
 #'@importFrom shinyjs runjs delay
+#'@importFrom imputeTS na.interpolation
+#'@importFrom jpeg writeJPEG readJPEG
 #'@import data.table
 #'@import magrittr
 #'@import tidyr

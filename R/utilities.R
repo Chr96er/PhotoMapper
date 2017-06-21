@@ -17,6 +17,8 @@
 #'@importFrom shinyjs useShinyjs
 #'@importFrom DT renderDataTable
 #'@importFrom shinyjs runjs delay
+#'@importFrom imputeTS na.interpolation
+#'@importFrom jpeg writeJPEG readJPEG
 
 extension <- ".jpg"
 
