@@ -26,7 +26,8 @@ fluidPage(
       $("#country").countrySelect({
       onlyCountries: ["gb", "de"]
       });
-      </script>'
+      </script>
+      '
     )
     ),
   tags$head(

@@ -85,7 +85,11 @@ server <- function(input, output, session) {
         class = "outer",
         tags$head(# Include our custom CSS
           includeCSS("styles.css")),
-        leaflet::leafletOutput("map", width = "100%", height = "100%"),
+        tags$style(
+          type = "text/css",
+          ".outer {position: fixed; top: 0; left: 0; right: 0; bottom: 20px; overflow: hidden; padding: 0}"
+        ),
+        leaflet::leafletOutput("map", width = "100%", height = "93%"),
         absolutePanel(
           id = "controls",
           class = "panel panel-default",
@@ -98,8 +102,11 @@ server <- function(input, output, session) {
           width = 430,
           height = "auto",
           h2("PhotoMapper"),
-          insertMainTabpanel()
-        )
+          tr("Geolocation"),
+          insertMainTabpanel(),
+          textOutput("Errors")
+        ),
+        uiOutput("version")
       )
     } else {
       #mobile mode
@@ -184,28 +191,31 @@ server <- function(input, output, session) {
     op <- options(digits.secs = 2)
     exifFiles <- exif::read_exif(filenames$local)
     exifFiles %<>% as.data.table()
-    exifFiles %<>% .[, filename := filenames$local] %<>%
-      .[, baseFilename := basename(filenames$local)] %<>%
-      .[, originalFilename := filenames$original] %<>%
+    exifFiles %<>% .[, filename := filenames$local] %>%
+      .[, baseFilename := basename(filenames$local)] %>%
+      .[, originalFilename := filenames$original] %>%
       .[, shortName := sapply(exifFiles$originalFilename,
                               function(x) {
                                 substrRight(x, 23)
-                              })] %<>%
-      .[, missingTimestamp := digitised_timestamp == ""] %<>%
+                              })] %>%
+      .[, missingTimestamp := digitised_timestamp == ""] %>%
       .[missingTimestamp == F, exifTimestamp := strptime(paste0(digitised_timestamp,
                                                                 ".",
                                                                 subsecond_timestamp,
                                                                 "0"),
-                                                         format = "%Y:%m:%d %H:%M:%OS")] %<>%
+                                                         format = "%Y:%m:%d %H:%M:%OS")] %>%
       .[, firstTimestamp := as.POSIXct(apply(cbind(file.info(filename)[, c("mtime", "ctime")],
                                                    exifTimestamp), 1, function(x) {
                                                      min(x, na.rm = T)
-                                                   }))] %<>% #get actual timestamp as first date from: file creation/modified and exif date
+                                                   }))] %>% #get actual timestamp as first date from: file creation/modified and exif date
       #as.posixct necessary because apply min casts date to string
-      .[latitude == 0, latitude := NA] %<>%
-      .[longitude == 0, longitude := NA] %<>%
+      .[latitude == 0, latitude := NA] %>%
+      .[longitude == 0, longitude := NA] %>%
       .[, missingLocation := is.na(latitude)]
     # imputeExif(c("latitude", "longitude"), c(0.001, 0.001)) %<>% #ToDo: Impute time just like location #Set timestamp to 1970
+    if (exifFiles[missingLocation == F, .N] == 0) {
+      return(NULL)
+    }
     exifFiles %<>% .[order(firstTimestamp)] %<>%
       .[, latitude := imputeTS::na.interpolation(latitude, option = "spline")] %<>%
       .[, longitude := imputeTS::na.interpolation(longitude, option = "spline")] %<>%
@@ -218,6 +228,16 @@ server <- function(input, output, session) {
                       inputId = "menuTabs",
                       selected = "filter")
     return(exifFiles)
+  })
+  
+  output$Errors <- renderText({
+    exifFiles <- computeExif()
+    validate(need(
+      !is.null(exifFiles) && exifFiles[, .N] > 0,
+      tr(
+        "No images selected or no images with required exif information available"
+      )
+    ), errorClass = "exif")
   })
   
   convertImages <- reactive({
@@ -259,13 +279,13 @@ server <- function(input, output, session) {
       exifFiles[, checked := T]
       
       if (ignoreMissingTimestamp &&
-          exifFiles[missingTimestamp, .N] > 0) {
-        exifFiles[missingTimestamp, checked := F]
+          exifFiles[missingTimestamp == T, .N] > 0) {
+        exifFiles[missingTimestamp == T, checked := F]
       }
       
       if (ignoreMissingLocation &&
-          exifFiles[missingLocation, .N] > 0) {
-        exifFiles[missingLocation, checked := F]
+          exifFiles[missingLocation == T, .N] > 0) {
+        exifFiles[missingLocation == T, checked := F]
       }
       
       return(exifFiles)
