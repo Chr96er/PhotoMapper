@@ -4,6 +4,7 @@
 #'@importFrom leaflet renderLeaflet
 #'@importFrom exif read_exif
 #'@importFrom DT renderDataTable
+#'@importFrom shinyJS runjs delay
 #'@import data.table
 #'@import magrittr
 #'@import tidyr
