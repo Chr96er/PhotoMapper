@@ -4,12 +4,16 @@
 #'@importFrom leaflet renderLeaflet
 #'@importFrom exif read_exif
 #'@importFrom DT renderDataTable
+#'@import data.table
 #'@import magrittr
+#'@import tidyr
 require(shiny)
 require(shinyUtils)
 require(PhotoMapper)
 require(data.table)
 require(magrittr)
+require(tidyr)
+
 
 options(shiny.maxRequestSize = 30 * 1024 ^ 2)
 extension <- ".jpg"
@@ -57,6 +61,7 @@ server <- function(input, output, session) {
     if (is.null(input$map_bounds)) {
       return(NULL)
     }
+    #Add delay so we don't get problems during photomapper rendering
     shinyjs::delay(
       1000,
       shinyjs::runjs(
@@ -72,7 +77,7 @@ server <- function(input, output, session) {
       return(NULL)
     }
     if (!input$mobileBrowser) {
-      #   #Fullscreen mode, adapted from http://shiny.rstudio.com/gallery/superzip-example.html
+      #Fullscreen mode, adapted from http://shiny.rstudio.com/gallery/superzip-example.html
       div(
         class = "outer",
         tags$head(# Include our custom CSS
@@ -118,20 +123,6 @@ server <- function(input, output, session) {
       )
     )
   })
-  
-  shinyInput <- function(FUN, id, num, value, offset, ...) {
-    inputs <- character(num)
-    for (i in seq_len(num)) {
-      inputs[i] <-
-        as.character(FUN(
-          paste0(id, i + offset),
-          label = NULL,
-          value = value[i],
-          ...
-        ))
-    }
-    inputs
-  }
   
   #observer for filenames reactiveValue
   filenames <- reactiveValues(local = NULL, original = NULL)
@@ -187,7 +178,7 @@ server <- function(input, output, session) {
   computeExif <- reactive({
     if (is.null(filenames$local))
       return()
-    op <- options(digits.secs = 3)
+    op <- options(digits.secs = 2)
     exifFiles <- exif::read_exif(filenames$local)
     exifFiles %<>% as.data.table()
     exifFiles %<>% .[, filename := filenames$local] %<>%
@@ -197,24 +188,29 @@ server <- function(input, output, session) {
                               function(x) {
                                 substrRight(x, 23)
                               })] %<>%
-      .[, checked := T] %<>%
-      .[, missingTimestamp := F] %<>%
-      .[, missingLocation := F] %<>%
-      imputeExif(c("latitude", "longitude"), c(0.001, 0.001)) %<>% #ToDo: Impute time just like location #Set timestamp to 1970
-      .[digitised_timestamp == "", missingTimestamp := T] %<>%
-      .[missingTimestamp == T, digitised_timestamp := "1970:01:01 00:00:00"] %<>%
-      .[missingTimestamp == T, subsecond_timestamp := .I] %<>%
-      .[, digitised_timestamp := strptime(paste(exifFiles[, digitised_timestamp],
-                                                ".",
-                                                exifFiles[, subsecond_timestamp],
-                                                "0",
-                                                sep = ""),
-                                          format = "%Y:%m:%d %H:%M:%OS")] %<>%
-      .[order(exifFiles$digitised_timestamp)] %<>%
-      .[, LatLonShort := paste(round(exifFiles[, longitude], digits = 2),
-                               round(exifFiles[, latitude], digits = 2),
+      .[, missingTimestamp := digitised_timestamp == ""] %<>%
+      .[missingTimestamp == F, exifTimestamp := strptime(paste0(digitised_timestamp,
+                                                                ".",
+                                                                subsecond_timestamp,
+                                                                "0"),
+                                                         format = "%Y:%m:%d %H:%M:%OS")] %<>%
+      .[, firstTimestamp := as.POSIXct(apply(cbind(file.info(filename)[, c("mtime", "ctime")],
+                                                   exifTimestamp), 1, function(x) {
+                                                     min(x, na.rm = T)
+                                                   }))] %<>% #get actual timestamp as first date from: file creation/modified and exif date
+      #as.posixct necessary because apply min casts date to string
+      .[latitude == 0, latitude := NA] %<>%
+      .[longitude == 0, longitude := NA] %<>%
+      .[, missingLocation := is.na(latitude)]
+    # imputeExif(c("latitude", "longitude"), c(0.001, 0.001)) %<>% #ToDo: Impute time just like location #Set timestamp to 1970
+    exifFiles %<>% .[order(firstTimestamp)] %<>%
+      .[, latitude := imputeTS::na.interpolation(latitude, option = "spline")] %<>%
+      .[, longitude := imputeTS::na.interpolation(longitude, option = "spline")] %<>%
+      .[, LatLonShort := paste(round(longitude, digits = 2),
+                               round(latitude, digits = 2),
                                sep = " : ")] %<>%
-      .[is.null(orientation), orientation := 0]
+      .[is.null(orientation), orientation := 0] %<>%
+      .[, checked := T]
     updateTabsetPanel(session = session,
                       inputId = "menuTabs",
                       selected = "filter")
@@ -279,7 +275,7 @@ server <- function(input, output, session) {
     }
     selection <- which(exifFiles[, checked])
     exifFiles %>% .[, .(shortName,
-                        digitised_timestamp,
+                        firstTimestamp,
                         LatLonShort,
                         missingLocation,
                         missingTimestamp)] %>%
@@ -327,22 +323,9 @@ server <- function(input, output, session) {
                 longitude > input$map_bounds$west]
   })
   
-  observeEvent(input$map_marker_click, {
-    if (is.null(input$map_marker_click)) {
-      return(NULL)
-    }
-    shinyjs::runjs(paste0("gallery.goTo(", input$map_marker_click$id - 1, ");"))
-  })
-  
   output$photoswipeInitialization <- renderUI({
-    mdata <- mapData()
-    sdata <- selectedData()
-    if (!is.null(mdata) && !is.null(sdata)) {
-      exifFiles <- mdata[sdata[, filename], on = "filename", nomatch = 0]
-    } else {
-      return(NULL)
-    }
-    if (is.null(exifFiles)) {
+    exifFiles <- mapData()
+    if (is.null(exifFiles) || !nrow(exifFiles)) {
       return(NULL)
     }
     #build items array for photoswipe
@@ -396,6 +379,7 @@ server <- function(input, output, session) {
         // not using *var* will ensure that PhotoSwipe becomes global and thus accessible within entire R session
         gallery = new PhotoSwipe( pswpElement, PhotoSwipeUI_Default, items, options);
         gallery.init();
+        gallery.goTo(0);
         gallery.listen('afterChange', function() {
         // index - index of a slide that was loaded
         // item - slide object
@@ -406,53 +390,60 @@ server <- function(input, output, session) {
       )))
   })
   
+  observeEvent(input$map_marker_click, {
+    if (is.null(input$map_marker_click) ||
+        input$map_marker_click$id == "Selected") {
+      return(NULL)
+    }
+    shinyjs::delay(200,
+                   shinyjs::runjs(
+                     paste0("gallery.goTo(", input$map_marker_click$id - 1, ");")
+                   ))
+    exifFiles <- mapData()
+    highlightedPoint <- input$map_marker_click$id
+    
+    leaflet::leafletProxy("map") %>%
+      leaflet::removeMarker(layerId = "Selected") %>%
+      highlightMarker(exifFiles[highlightedPoint, longitude],
+                      exifFiles[highlightedPoint, latitude],
+                      grDevices::rainbow(exifFiles[, .N], alpha = NULL)[highlightedPoint])
+  })
+  
   #Update cluster markers highlight according to photoswipe selection
   observeEvent({
     input$photoswipe_index
-    # input$map_bounds
   }, {
     if (is.null(input$photoswipe_index)) {
       return(NULL)
     }
     exifFiles <- mapData()
     highlightedPoint <- input$photoswipe_index + 1
-    radiusHighlight <- rep(10, nrow(exifFiles))
-    radiusHighlight[highlightedPoint] <- 20
-    fillOpacityHighlight <- rep(0.5, nrow(exifFiles))
-    fillOpacityHighlight[highlightedPoint] <- 0.8
     
-    leaflet::leafletProxy("map", data = cbind(exifFiles$longitude, exifFiles$latitude)) %>%
-      leaflet::clearMarkerClusters() %>% #ToDo: leaflet::removeMarkerFromCluster(previous selection)
-      leaflet::addCircleMarkers(
-        color = grDevices::rainbow(nrow(exifFiles), alpha = NULL),
-        layerId = seq_len(nrow(exifFiles)),
-        clusterOptions = leaflet::markerClusterOptions(),
-        stroke = F,
-        fillOpacity = fillOpacityHighlight,
-        radius = radiusHighlight
-      )
+    leaflet::leafletProxy("map") %>%
+      leaflet::removeMarker(layerId = "Selected") %>%
+      highlightMarker(exifFiles[highlightedPoint, longitude],
+                      exifFiles[highlightedPoint, latitude],
+                      grDevices::rainbow(exifFiles[, .N], alpha = NULL)[highlightedPoint])
   })
   
+  
+  prevMapData <- reactiveValues(init = NULL)
   #Put selected images as markers on map
   observe({
-    exifFiles <- selectedData()
+    exifFiles <- mapData()
     if (is.null(exifFiles) || !nrow(exifFiles)) {
       #No rows selected -> zoom to world map
-      leaflet::leafletProxy("map") %>%
-        leaflet::setView(lng = 0,
-                         lat = 0,
-                         zoom = 2) %>%
-        leaflet::addTiles() %>%
-        leaflet::clearMarkerClusters()
+      defaultWorldMap()
       shinyjs::runjs("$('#photoswipeInner').hide();")
       return(NULL)
     }
-    shinyjs::runjs("$('#photoswipeInner').show();")
-    highlightedPoint <- 1
-    radiusHighlight <- rep(10, nrow(exifFiles))
-    radiusHighlight[highlightedPoint] <- 20
-    fillOpacityHighlight <- rep(0.5, nrow(exifFiles))
-    fillOpacityHighlight[highlightedPoint] <- 0.8
+    if (!is.null(prevMapData$init) &&
+        nrow(prevMapData$init) == nrow(exifFiles)) {
+      return(NULL)
+    } else {
+      prevMapData$init = exifFiles
+    }
+    shinyjs::runjs("if($('#photoswipeInner').prop('hidden')){$('#photoswipeInner').show();}")
     leaflet::leafletProxy("map", data = cbind(exifFiles$longitude, exifFiles$latitude)) %>%
       leaflet::fitBounds(
         min(exifFiles$longitude),
@@ -460,26 +451,52 @@ server <- function(input, output, session) {
         max(exifFiles$longitude),
         max(exifFiles$latitude)
       ) %>%
-      leaflet::clearMarkerClusters() %>% #ToDo: leaflet::removeMarkerFromCluster(previous selection)
+      leaflet::clearMarkers() %>%
+      leaflet::clearMarkerClusters() %>%
       leaflet::addCircleMarkers(
-        color = grDevices::rainbow(nrow(exifFiles), alpha = NULL),
-        layerId = seq_len(nrow(exifFiles)),
+        color = grDevices::rainbow(exifFiles[, .N], alpha = NULL),
+        layerId = seq_len(exifFiles[, .N]),
         clusterOptions = leaflet::markerClusterOptions(),
         stroke = F,
-        fillOpacity = fillOpacityHighlight,
-        radius = radiusHighlight
-      )
+        fillOpacity = 0.5,
+        radius = 10
+      ) %>%
+      highlightMarker(exifFiles[1, longitude],
+                      exifFiles[1, latitude],
+                      grDevices::rainbow(exifFiles[, .N], alpha = NULL)[1])
   })
   
   #Initial rendering of map -> zoom to world map
   output$map <- leaflet::renderLeaflet({
+    defaultWorldMap()
+  })
+  
+  defaultWorldMap <- function() {
     leaflet::leaflet() %>%
       leaflet::setView(lng = 0,
                        lat = 0,
                        zoom = 2) %>%
-      leaflet::addTiles()
-  })
+      leaflet::addTiles() %>%
+      leaflet::clearMarkerClusters()
+  }
   
+  highlightMarker <- function(map, lng, lat, col) {
+    leaflet::addCircleMarkers(
+      map,
+      lng,
+      lat,
+      radius = 20,
+      color = col,
+      fillColor = col,
+      fillOpacity = 1,
+      opacity = 1,
+      weight = 2,
+      stroke = TRUE,
+      layerId = "Selected"
+    )
+  }
+  
+  ######UI Functions
   insertMainTabpanel <- function() {
     tabsetPanel(
       id = "menuTabs",

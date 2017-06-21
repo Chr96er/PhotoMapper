@@ -1,13 +1,9 @@
 #'@importFrom exif read_exif
 #'@importFrom imager save.image imrotate load.image
-#'@importFrom rgdal GDALinfo
-#'@import shiny
-#'@import shinyUtils
 #'@importFrom jpeg readJPEG writeJPEG
 #'@importFrom leaflet leaflet addTiles addCircleMarkers
 #'@importFrom grDevices rainbow
 #'@import shinyUtils
-#'@import shiny
 #'@importFrom leaflet renderLeaflet
 #'@importFrom exif read_exif
 #'@importFrom DT renderDataTable
@@ -16,6 +12,8 @@
 #'@importFrom DT dataTableOutput
 #'@importFrom shinydashboard box
 #'@import magrittr
+#'@import data.table
+#'@import tidyr
 
 extension <- ".jpg"
 
@@ -111,9 +109,9 @@ normalizeImage <-
            size = 300,
            base = c("max", "width", "height")) {
     as.data.frame(t(sapply(filenames, function(filename) {
-      info <- rgdal::GDALinfo(filename, silent = TRUE)
+      imgCached <- jpeg::readJPEG(filename)
       yx_ratio <-
-        as.numeric(info["rows"]) / as.numeric(info["columns"])
+        nrow(imgCached) / ncol(imgCached)
       if ((base == "height") || (base == "max" && yx_ratio > 1)) {
         #More rows than columns -> size is basis for height
         height <- size
