@@ -14,9 +14,9 @@
 #'@import magrittr
 #'@import data.table
 #'@import tidyr
-#'@importFrom shinyJS useShinyjs
+#'@importFrom shinyjs useShinyjs
 #'@importFrom DT renderDataTable
-#'@importFrom shinyJS runjs delay
+#'@importFrom shinyjs runjs delay
 
 extension <- ".jpg"
 

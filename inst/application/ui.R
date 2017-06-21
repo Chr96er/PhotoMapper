@@ -3,7 +3,7 @@
 #'@importFrom leaflet leafletOutput
 #'@importFrom DT dataTableOutput
 #'@importFrom shinyDashboard box
-#'@importFrom shinyJS useShinyjs
+#'@importFrom shinyjs useShinyjs
 library(shinyUtils)
 #########################
 
