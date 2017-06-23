@@ -495,12 +495,15 @@ server <- function(input, output, session) {
   })
   
   defaultWorldMap <- function() {
-    leaflet::leaflet() %>%
+    withProgress({
+      leaflet::leaflet() %>%
       leaflet::setView(lng = 0,
                        lat = 0,
                        zoom = 2) %>%
       leaflet::addTiles() %>%
-      leaflet::clearMarkerClusters()
+      leaflet::clearMarkerClusters()},
+      style = "old",
+      message = "Loading PhotoMapper...")
   }
   
   highlightMarker <- function(map, lng, lat, col) {
